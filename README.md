@@ -1,3 +1,4 @@
+![Reqstudio logo](media/reqstudio_logo.png)
 # Y10K ReqStudio
 
 > **Git-driven requirements editor (PyQt6) for SRS workflows** — write, version, and export your specs with **traceability by design**.
@@ -5,6 +6,7 @@
 ![Platform](https://img.shields.io/badge/platform-Windows%20%7C%20macOS%20%7C%20Linux-informational.svg)
 ![Language](https://img.shields.io/badge/language-Python%203.10%2B-blue.svg)
 ![GUI](https://img.shields.io/badge/GUI-PyQt6-purple.svg)
+
 
 ---
 
