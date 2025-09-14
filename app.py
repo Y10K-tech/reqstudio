@@ -1,23 +1,40 @@
-import os
 import sys
-import re
-import difflib
 from pathlib import Path
+import difflib
 
-from PyQt6.QtCore import Qt, QSettings, QSaveFile, QFileInfo
-from PyQt6.QtGui import QAction, QIcon, QFont, QTextCursor
+from PyQt6.QtCore import Qt, QSettings, QSaveFile
+from PyQt6.QtGui import QAction, QFont, QTextCursor, QTextDocument
 from PyQt6.QtWidgets import (
-    QApplication, QMainWindow, QFileDialog, QTextEdit, QMessageBox,
-    QStatusBar, QToolBar, QDialog, QVBoxLayout, QListWidget, QWidget,
-    QSplitter, QPlainTextEdit, QLabel, QHBoxLayout, QLineEdit, QPushButton,
-    QCheckBox
+    QApplication,
+    QMainWindow,
+    QFileDialog,
+    QTextEdit,
+    QMessageBox,
+    QStatusBar,
+    QToolBar,
+    QDialog,
+    QVBoxLayout,
+    QListWidget,
+    QWidget,
+    QPlainTextEdit,
+    QLabel,
+    QHBoxLayout,
+    QLineEdit,
+    QPushButton,
+    QInputDialog,
+    QStackedWidget,
 )
-from PyQt6.QtPrintSupport import QPrinter, QPrintDialog
+from PyQt6.QtPrintSupport import QPrinter
 
 from core.git_backend import GitFacade, GitError
 from core.highlighter import MarkdownHighlighter
 from core.templates import TEMPLATES
 from core.utils import detect_srs_ids, normalize_newlines
+
+try:
+    import markdown as _markdown
+except Exception:
+    _markdown = None
 
 
 APP_NAME = "Y10K ReqStudio"
@@ -39,50 +56,41 @@ class HistoryDialog(QDialog):
         info.setTextInteractionFlags(Qt.TextInteractionFlag.TextSelectableByMouse)
         layout.addWidget(info)
 
-        splitter = QSplitter(Qt.Orientation.Horizontal)
+        splitter = QWidget()
+        s_layout = QVBoxLayout(splitter)
         layout.addWidget(splitter)
 
-        # commit-list vänster
         self.list = QListWidget()
-        splitter.addWidget(self.list)
-
-        # viewer höger (två paneler: commit-innehåll och diff mot arbetsfil)
-        right = QWidget()
-        right_layout = QVBoxLayout(right)
+        s_layout.addWidget(self.list)
 
         self.commit_label = QLabel("Commit: -")
-        right_layout.addWidget(self.commit_label)
+        s_layout.addWidget(self.commit_label)
 
         self.text_commit = QPlainTextEdit()
         self.text_commit.setReadOnly(True)
-        font = QFont("Consolas" if sys.platform.startswith("win") else "Monospace")
+        font = QFont("Consolas")
         font.setStyleHint(QFont.StyleHint.TypeWriter)
         self.text_commit.setFont(font)
-        right_layout.addWidget(self.text_commit, 2)
+        s_layout.addWidget(self.text_commit, 1)
 
         self.diff_label = QLabel("Diff mot aktuell buffert:")
-        right_layout.addWidget(self.diff_label)
+        s_layout.addWidget(self.diff_label)
 
         self.text_diff = QPlainTextEdit()
         self.text_diff.setReadOnly(True)
         self.text_diff.setFont(font)
-        right_layout.addWidget(self.text_diff, 3)
+        s_layout.addWidget(self.text_diff, 2)
 
-        splitter.addWidget(right)
-        splitter.setSizes([300, 700])
-
-        # Ladda commits
         rel = self.repo.relpath(file_abspath)
         commits = self.repo.log_file(rel, max_count=200)
         for c in commits:
             self.list.addItem(f"{c['short']}  {c['when']}  {c['author']}: {c['msg']}")
-
         self.commits = commits
         self.list.currentRowChanged.connect(self.on_row)
         if commits:
             self.list.setCurrentRow(0)
 
-    def on_row(self, row):
+    def on_row(self, row: int):
         if row < 0:
             return
         commit = self.commits[row]
@@ -95,7 +103,6 @@ class HistoryDialog(QDialog):
             return
         self.text_commit.setPlainText(content)
 
-        # Gör diff mot nuvarande text i editorn om huvudfönstret finns
         parent = self.parent()
         current = ""
         if parent and isinstance(parent, QMainWindow) and hasattr(parent, "editor"):
@@ -104,7 +111,7 @@ class HistoryDialog(QDialog):
             content.splitlines(), current.splitlines(),
             fromfile=f"{rel}@{commit['short']}",
             tofile=f"{rel}@WORKTREE",
-            lineterm=""
+            lineterm="",
         )
         self.text_diff.setPlainText("\n".join(diff))
 
@@ -120,40 +127,45 @@ class CommitDialog(QDialog):
         self.msg = QLineEdit(default_message)
         layout.addWidget(self.msg)
 
-        self.cb_stage_all = QCheckBox("Stage ALLA ändrade filer i arbetsytan (inte bara denna fil)")
-        self.cb_stage_all.setChecked(False)
-        layout.addWidget(self.cb_stage_all)
-
-        btns = QHBoxLayout()
         self.ok = QPushButton("Commit")
         self.cancel = QPushButton("Avbryt")
-        btns.addWidget(self.ok)
-        btns.addWidget(self.cancel)
-        layout.addLayout(btns)
+        row = QHBoxLayout()
+        row.addWidget(self.ok)
+        row.addWidget(self.cancel)
+        layout.addLayout(row)
 
         self.ok.clicked.connect(self.accept)
         self.cancel.clicked.connect(self.reject)
 
     def values(self):
-        return self.msg.text().strip(), self.cb_stage_all.isChecked()
+        return self.msg.text().strip()
 
 
 class MainWindow(QMainWindow):
     def __init__(self):
         super().__init__()
-        self.setWindowTitle(f"{APP_NAME}")
+        self.setWindowTitle(APP_NAME)
         self.resize(1200, 800)
 
         self.settings = QSettings(ORG, APP_NAME)
 
+        # Source editor
         self.editor = QTextEdit()
-        font = QFont("Consolas" if sys.platform.startswith("win") else "Monospace")
+        font = QFont("Consolas")
         font.setStyleHint(QFont.StyleHint.TypeWriter)
         font.setPointSize(11)
         self.editor.setFont(font)
-        self.setCentralWidget(self.editor)
-
         self.highlighter = MarkdownHighlighter(self.editor.document(), SRS_ID_REGEX)
+
+        # Rendered preview (single-pane mode when active)
+        self.preview = QTextEdit()
+        self.preview.setReadOnly(True)
+        self.preview.setAcceptRichText(True)
+
+        self.stack = QStackedWidget()
+        self.stack.addWidget(self.editor)   # index 0
+        self.stack.addWidget(self.preview)  # index 1
+        self.setCentralWidget(self.stack)
 
         self.status = QStatusBar()
         self.setStatusBar(self.status)
@@ -162,19 +174,36 @@ class MainWindow(QMainWindow):
         self.workspace: Path | None = None
         self.repo = GitFacade()
 
+        self._md_css = """
+        body { font-family: system-ui, Segoe UI, Roboto, Helvetica, Arial, sans-serif; font-size: 14px; color: #222; }
+        h1 { font-size: 1.8em; margin: 0.8em 0 0.4em; }
+        h2 { font-size: 1.6em; margin: 0.8em 0 0.4em; }
+        h3 { font-size: 1.4em; margin: 0.8em 0 0.4em; }
+        h4 { font-size: 1.2em; margin: 0.8em 0 0.4em; }
+        h5 { font-size: 1.1em; margin: 0.8em 0 0.4em; }
+        h6 { font-size: 1.0em; margin: 0.8em 0 0.4em; }
+        p { margin: 0.4em 0 0.8em; }
+        ul, ol { margin: 0.4em 0 0.8em 1.4em; }
+        code { background: #f5f5f5; padding: 0 3px; border-radius: 3px; }
+        pre { background: #f5f5f5; padding: 8px; border-radius: 4px; overflow-x: auto; }
+        table { border-collapse: collapse; margin: 0.8em 0; }
+        th, td { border: 1px solid #ddd; padding: 6px 10px; }
+        blockquote { border-left: 3px solid #ccc; margin: 0.8em 0; padding: 0.2em 0 0.2em 0.8em; color: #555; }
+        hr { border: none; border-top: 1px solid #ddd; margin: 1em 0; }
+        """.strip()
+
         self._make_actions()
         self._make_menus()
         self._make_toolbar()
         self._wire_signals()
 
-        # Återställ senaste arbetsyta
         last_ws = self.settings.value("workspace", "")
         if last_ws and Path(last_ws).exists():
             self.load_workspace(Path(last_ws))
 
+        self.stack.setCurrentIndex(0)
         self.update_status()
 
-    # UI wiring
     def _make_actions(self):
         self.act_new = QAction("Ny", self)
         self.act_open = QAction("Öppna fil…", self)
@@ -199,15 +228,21 @@ class MainWindow(QMainWindow):
 
         # Git
         self.act_git_init = QAction("Initiera repo här", self)
-        self.act_git_commit = QAction("Stage & Commit…", self)
+        self.act_git_commit = QAction("Commit…", self)
         self.act_git_branch_create = QAction("Skapa branch…", self)
         self.act_git_branch_switch = QAction("Byt branch…", self)
         self.act_git_history = QAction("Historik (denna fil)…", self)
         self.act_git_push = QAction("Push", self)
         self.act_git_pull = QAction("Pull", self)
 
-        # Verktyg
-        self.act_validate_ids = QAction("Validera SRS-ID i dokument", self)
+        # View / Tools
+        self.act_toggle_md = QAction("Syntax highlighting", self)
+        self.act_toggle_md.setCheckable(True)
+        self.act_toggle_md.setChecked(True)
+
+        self.act_live_preview = QAction("Realtime Markdown Preview", self)
+        self.act_live_preview.setCheckable(True)
+        self.act_live_preview.setChecked(False)
 
         # Shortcuts
         self.act_new.setShortcut("Ctrl+N")
@@ -218,11 +253,6 @@ class MainWindow(QMainWindow):
         self.act_find.setShortcut("Ctrl+F")
         self.act_undo.setShortcut("Ctrl+Z")
         self.act_redo.setShortcut("Ctrl+Y")
-
-        # Rendering toggle
-        self.act_toggle_md = QAction("Realtime Markdown Rendering", self)
-        self.act_toggle_md.setCheckable(True)
-        self.act_toggle_md.setChecked(True)
 
     def _make_menus(self):
         m_file = self.menuBar().addMenu("&Arkiv")
@@ -265,17 +295,23 @@ class MainWindow(QMainWindow):
         m_git.addAction(self.act_git_push)
 
         m_tools = self.menuBar().addMenu("&Verktyg")
+        m_tools.addAction(self.act_live_preview)
         m_tools.addAction(self.act_toggle_md)
-        m_tools.addAction(self.act_validate_ids)
 
     def _make_toolbar(self):
         tb = QToolBar("Snabbverktyg")
         self.addToolBar(Qt.ToolBarArea.TopToolBarArea, tb)
-        for a in [self.act_new, self.act_open, self.act_save, self.act_export_pdf,
-                  self.act_git_commit, self.act_git_history]:
+        for a in [
+            self.act_new,
+            self.act_open,
+            self.act_save,
+            self.act_export_pdf,
+            self.act_git_commit,
+            self.act_git_history,
+        ]:
             tb.addAction(a)
         tb.addSeparator()
-        tb.addAction(self.act_toggle_md)
+        tb.addAction(self.act_live_preview)
 
     def _wire_signals(self):
         self.act_new.triggered.connect(self.on_new)
@@ -304,16 +340,56 @@ class MainWindow(QMainWindow):
         self.act_git_pull.triggered.connect(self.on_git_pull)
         self.act_git_push.triggered.connect(self.on_git_push)
 
-        self.editor.textChanged.connect(self.update_status)
-        self.act_toggle_md.toggled.connect(self.on_toggle_markdown)
+        self.editor.textChanged.connect(self.on_editor_changed)
 
-    def on_toggle_markdown(self, enabled: bool):
-        # Attach/detach the syntax highlighter to enable/disable live rendering
+        self.act_toggle_md.toggled.connect(self.on_toggle_highlight)
+        self.act_live_preview.toggled.connect(self.on_toggle_preview_mode)
+
+    # Preview / render
+    def render_markdown(self, text: str) -> str:
+        if not _markdown:
+            safe = (
+                text.replace("&", "&amp;")
+                    .replace("<", "&lt;")
+                    .replace(">", "&gt;")
+            )
+            body = f"<pre>{safe}</pre>"
+        else:
+            try:
+                body = _markdown.markdown(text, extensions=["extra"])  # tables, etc.
+            except Exception:
+                safe = (
+                    text.replace("&", "&amp;")
+                        .replace("<", "&lt;")
+                        .replace(">", "&gt;")
+                )
+                body = f"<pre>{safe}</pre>"
+        return f"<html><head><meta charset='utf-8'><style>{self._md_css}</style></head><body>{body}</body></html>"
+
+    def update_preview(self):
+        html = self.render_markdown(self.editor.toPlainText())
+        self.preview.setHtml(html)
+
+    def on_toggle_preview_mode(self, enabled: bool):
+        # When enabled, switch to rendered preview; when disabled, return to source editor
+        if enabled:
+            self.update_preview()
+            self.stack.setCurrentIndex(1)
+        else:
+            self.stack.setCurrentIndex(0)
+
+    def on_toggle_highlight(self, enabled: bool):
         if enabled:
             self.highlighter.setDocument(self.editor.document())
             self.highlighter.rehighlight()
         else:
             self.highlighter.setDocument(None)
+
+    def on_editor_changed(self):
+        self.update_status()
+        # If in preview mode, keep it in sync
+        if self.stack.currentIndex() == 1:
+            self.update_preview()
 
     # File ops
     def on_new(self):
@@ -325,12 +401,10 @@ class MainWindow(QMainWindow):
 
     def on_open(self):
         if not self.workspace:
-            QMessageBox.information(self, "Ingen arbetsyta",
-                                    "Öppna först en arbetsyta (mapp).")
+            QMessageBox.information(self, "Ingen arbetsyta", "Öppna först en arbetsyta (mapp).")
             return
         path, _ = QFileDialog.getOpenFileName(
-            self, "Öppna fil", str(self.workspace),
-            "Text/Markdown (*.md *.markdown *.txt);;Alla filer (*.*)"
+            self, "Öppna fil", str(self.workspace), "Text/Markdown (*.md *.markdown *.txt);;Alla filer (*.*)"
         )
         if not path:
             return
@@ -340,6 +414,8 @@ class MainWindow(QMainWindow):
         self.current_file = Path(path)
         self.update_window_title()
         self.update_status()
+        if self.stack.currentIndex() == 1:
+            self.update_preview()
 
     def on_open_workspace(self):
         d = QFileDialog.getExistingDirectory(self, "Välj arbetsyta (mapp)")
@@ -351,11 +427,9 @@ class MainWindow(QMainWindow):
         self.workspace = path
         self.settings.setValue("workspace", str(path))
         self.status.showMessage(f"Arbetsyta: {path}", 5000)
-        # Ladda/öppna git
         try:
             self.repo.open(path)
         except GitError:
-            # Ingen repo – ok
             pass
         self.update_status()
 
@@ -366,12 +440,10 @@ class MainWindow(QMainWindow):
 
     def on_save_as(self):
         if not self.workspace:
-            QMessageBox.information(self, "Ingen arbetsyta",
-                                    "Öppna först en arbetsyta (mapp).")
+            QMessageBox.information(self, "Ingen arbetsyta", "Öppna först en arbetsyta (mapp).")
             return
         path, _ = QFileDialog.getSaveFileName(
-            self, "Spara som", str(self.workspace / "untitled.md"),
-            "Markdown (*.md);;Text (*.txt);;Alla filer (*.*)"
+            self, "Spara som", str(self.workspace / "untitled.md"), "Markdown (*.md);;Text (*.txt);;Alla filer (*.*)"
         )
         if not path:
             return
@@ -397,23 +469,21 @@ class MainWindow(QMainWindow):
             QMessageBox.information(self, "Tomt dokument", "Inget att exportera.")
             return
         path, _ = QFileDialog.getSaveFileName(
-            self, "Exportera som PDF", str(self.workspace or Path.cwd() / "document.pdf"),
-            "PDF (*.pdf)"
+            self, "Exportera som PDF", str(self.workspace or Path.cwd() / "document.pdf"), "PDF (*.pdf)"
         )
         if not path:
             return
         printer = QPrinter(QPrinter.PrinterMode.HighResolution)
         printer.setOutputFormat(QPrinter.OutputFormat.PdfFormat)
         printer.setOutputFileName(path)
-        # Skriv ut (plaintext -> PDF)
-        self.editor.document().print(printer)
+        html = self.render_markdown(self.editor.toPlainText())
+        doc = QTextDocument()
+        doc.setHtml(html)
+        doc.print(printer)
         self.status.showMessage(f"PDF exporterad: {path}", 5000)
 
     # Tools
     def on_find(self):
-        term, ok = QFileDialog.getText(self, "Sök", "Sökterm:")
-        # QFileDialog.getText finns inte – använd enkel dialog via QInputDialog
-        from PyQt6.QtWidgets import QInputDialog
         term, ok = QInputDialog.getText(self, "Sök", "Sökterm:")
         if not ok or not term:
             return
@@ -436,6 +506,7 @@ class MainWindow(QMainWindow):
         block = meta["content"].strip() + "\n"
         cursor.insertText(block)
 
+    # Git
     def on_git_init(self):
         if not self.workspace:
             QMessageBox.information(self, "Ingen arbetsyta", "Öppna en arbetsyta först.")
@@ -448,26 +519,22 @@ class MainWindow(QMainWindow):
         self.update_status()
 
     def on_git_commit(self):
-        if not self.workspace or not self.current_file:
-            QMessageBox.information(self, "Git", "Spara en fil i en arbetsyta först.")
+        if not self.workspace:
+            QMessageBox.information(self, "Git", "Spara i en arbetsyta först.")
             return
-        # Spara ev. osparat
         if self.editor.document().isModified():
             self.on_save()
-        # Förifyll commit-meddelande med SRS-ID om hittad
         text = self.editor.toPlainText()
         ids = detect_srs_ids(text, SRS_ID_REGEX)
         default_msg = ids[0] + " – uppdaterad kravspec" if ids else "Uppdaterad kravspec"
         dlg = CommitDialog(default_msg, self)
         if dlg.exec() != QDialog.DialogCode.Accepted:
             return
-        msg, stage_all = dlg.values()
+        msg = dlg.values()
         try:
             if not self.repo.is_open():
-                # försök öppna
                 self.repo.open(self.workspace)
-            paths = None if stage_all else [self.current_file]
-            self.repo.commit(paths=paths, message=msg)
+            self.repo.commit(paths=None, message=msg)
             QMessageBox.information(self, "Git", "Commit klar.")
         except GitError as e:
             QMessageBox.critical(self, "Git-fel", str(e))
@@ -475,10 +542,9 @@ class MainWindow(QMainWindow):
 
     def on_git_branch_create(self):
         if not self.repo.is_open():
-            QMessageBox.information(self, "Git", "Initiera/öppna repo först.")
+            QMessageBox.information(self, "Git", "Initiera/Öppna repo först.")
             return
-        from PyQt6.QtWidgets import QInputDialog
-        name, ok = QInputDialog.getText(self, "Ny branch", "Branch-namn (t.ex. feature/Y10K-ACME-AUTH-LL-003-login):")
+        name, ok = QInputDialog.getText(self, "Ny branch", "Branch-namn:")
         if not ok or not name.strip():
             return
         try:
@@ -490,10 +556,9 @@ class MainWindow(QMainWindow):
 
     def on_git_branch_switch(self):
         if not self.repo.is_open():
-            QMessageBox.information(self, "Git", "Initiera/öppna repo först.")
+            QMessageBox.information(self, "Git", "Initiera/Öppna repo först.")
             return
         branches = self.repo.list_branches()
-        from PyQt6.QtWidgets import QInputDialog
         name, ok = QInputDialog.getItem(self, "Byt branch", "Välj branch:", branches, 0, False)
         if not ok or not name:
             return
@@ -513,7 +578,7 @@ class MainWindow(QMainWindow):
 
     def on_git_pull(self):
         if not self.repo.is_open():
-            QMessageBox.information(self, "Git", "Initiera/öppna repo först.")
+            QMessageBox.information(self, "Git", "Initiera/Öppna repo först.")
             return
         try:
             out = self.repo.pull()
@@ -523,7 +588,7 @@ class MainWindow(QMainWindow):
 
     def on_git_push(self):
         if not self.repo.is_open():
-            QMessageBox.information(self, "Git", "Initiera/öppna repo först.")
+            QMessageBox.information(self, "Git", "Initiera/Öppna repo först.")
             return
         try:
             out = self.repo.push()
@@ -534,11 +599,12 @@ class MainWindow(QMainWindow):
     def maybe_save(self) -> bool:
         if not self.editor.document().isModified():
             return True
-        ret = QMessageBox.question(self, "Spara ändringar?",
-                                   "Dokumentet har ändringar. Vill du spara?",
-                                   QMessageBox.StandardButton.Yes |
-                                   QMessageBox.StandardButton.No |
-                                   QMessageBox.StandardButton.Cancel)
+        ret = QMessageBox.question(
+            self,
+            "Spara ändringar?",
+            "Dokumentet har ändringar. Vill du spara?",
+            QMessageBox.StandardButton.Yes | QMessageBox.StandardButton.No | QMessageBox.StandardButton.Cancel,
+        )
         if ret == QMessageBox.StandardButton.Yes:
             self.on_save()
             return True
@@ -554,7 +620,7 @@ class MainWindow(QMainWindow):
                 branch = f" [{self.repo.current_branch()}]"
             except GitError:
                 branch = ""
-        self.setWindowTitle(f"{APP_NAME} — {fn}{branch}")
+        self.setWindowTitle(f"{APP_NAME} – {fn}{branch}")
 
     def update_status(self):
         branch = "-"
@@ -569,12 +635,6 @@ class MainWindow(QMainWindow):
         cur = str(self.current_file) if self.current_file else "–"
         self.status.showMessage(f"WS: {ws} | Fil: {cur} | Branch: {branch} | SRS-ID: {srs_show}")
 
-    def closeEvent(self, event):
-        if self.maybe_save():
-            event.accept()
-        else:
-            event.ignore()
-
 
 def main():
     app = QApplication(sys.argv)
@@ -587,3 +647,4 @@ def main():
 
 if __name__ == "__main__":
     main()
+
