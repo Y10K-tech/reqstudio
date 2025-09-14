@@ -186,7 +186,7 @@
       same "printed page" as the copyright notice for easier
       identification within third-party archives.
 
-   Copyright [yyyy] [name of copyright owner]
+   Copyright 2025 Marcus Peterson
 
    Licensed under the Apache License, Version 2.0 (the "License");
    you may not use this file except in compliance with the License.
@@ -199,3 +199,26 @@
    WITHOUT WARRANTIES OR CONDITIONS OF ANY KIND, either express or implied.
    See the License for the specific language governing permissions and
    limitations under the License.
+----------------------------------------------------------------------
+ADDITIONAL NOTICES (Non-binding & Binding Clarifications)
+----------------------------------------------------------------------
+
+- **Jurisdiction & Governing Law** (Non-binding):  
+  This project is developed and published in Sweden. Any disputes arising
+  from the use of this software shall, to the extent not pre-empted by the
+  License itself, be governed by Swedish law and adjudicated in Swedish courts.  
+
+- **Patent Awareness** (Non-binding):  
+  While the Apache 2.0 license includes an express patent grant, users are
+  advised to perform their own patent due diligence in their jurisdiction
+  before commercial deployment.  
+ 
+- **Contributions** (Non-binding):  
+  By submitting a pull request or patch, you agree that your contribution
+  will be licensed under the Apache License, Version 2.0, and you affirm
+  that you have the right to license your contribution under those terms.  
+
+- **No Endorsement** (Binding):  
+  Use of the author’s name (“Marcus Peterson”) in advertising, publicity,
+  or promotion of derivative products is prohibited without prior written
+  permission. 
