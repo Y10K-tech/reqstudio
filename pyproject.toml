@@ -1,0 +1,34 @@
+[build-system]
+requires = [
+  "setuptools>=61",
+  "wheel"
+]
+build-backend = "setuptools.build_meta"
+
+[project]
+name = "y10k-reqstudio"
+version = "0.1.0"
+description = "Git-driven requirements/SRS editor with PyQt6, Git history, and PDF export."
+readme = "README.md"
+requires-python = ">=3.10"
+license = { file = "LICENSE" }
+authors = [
+  { name = "Y10K Software Engineering" }
+]
+dependencies = [
+  "PyQt6>=6.5",
+  "GitPython>=3.1"
+]
+
+[project.optional-dependencies]
+dev = [
+  "black>=24.0.0",
+  "ruff>=0.5.0",
+  "pytest>=7.0",
+  "pre-commit>=3.0"
+]
+
+[tool.setuptools]
+packages = ["core"]
+py-modules = ["app"]
+include-package-data = false

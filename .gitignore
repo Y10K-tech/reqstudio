@@ -1,0 +1,9 @@
+env/
+
+# core
+core/__pycache__
+core/*.logs
+
+
+#root
+__pycache__
