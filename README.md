@@ -1,4 +1,7 @@
-![Reqstudio logo](media/reqstudio_logo.png)
+<p align="center">
+  <img src="media/reqstudio_logo.png" alt="Reqstudio logo" width="300"/>
+</p>
+
 # Y10K ReqStudio
 
 > **Git-driven requirements editor (PyQt6) for SRS workflows** — write, version, and export your specs with **traceability by design**.
