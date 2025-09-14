@@ -7,3 +7,5 @@ core/*.logs
 
 #root
 __pycache__
+issues.md
+ISSUES.MD 
