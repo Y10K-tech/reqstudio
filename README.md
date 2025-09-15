@@ -120,7 +120,8 @@ python -m venv .venv
 # Windows:
 # .venv\Scripts\activate
 
-pip install -r requirements.txt
+python -m pip install --upgrade pip
+python -m pip install .
 python app.py
 ```
 
@@ -198,15 +199,22 @@ We’ll accept PRs behind a **Settings → Exporter** preference.
 ## Project Layout
 
 ```
-y10k-reqstudio/
+reqstudio/
 ├─ app.py                 # Main window, menus, actions, PDF export, dialogs
-├─ git_backend.py         # GitFacade wrapper (GitPython)
-├─ highlighter.py         # Lightweight Markdown/SRS-ID highlighter
-├─ templates.py           # HL/LL/CMP/ADR/Ticket content blocks
-├─ utils.py               # Helpers (newline normalize, SRS-ID detect)
-├─ requirements.txt
+├─ core/
+│  ├─ git_backend.py      # GitFacade wrapper (GitPython)
+│  ├─ highlighter.py      # Markdown/SRS-ID highlighter
+│  ├─ renderer.py         # Markdown → HTML with Pygments support
+│  ├─ templates.py        # HL/LL/CMP/ADR/Ticket content blocks
+│  └─ utils.py            # Helpers (newline normalize, SRS-ID detect)
+├─ api/
+│  └─ docs_server.py      # FastAPI static server for docs (port 8808)
+├─ docs/                  # Documentation site (SPA + static builder)
+├─ install/               # Installers (Unix, Windows, Docker), packaging helpers
+├─ media/                 # Logo and assets
+├─ pyproject.toml         # Packaging and dependencies
 ├─ README.md              # (this file)
-└─ LICENSE                # MIT
+└─ LICENSE
 ```
 
 ---
@@ -219,7 +227,8 @@ git clone https://github.com/<your-org>/y10k-reqstudio.git
 cd y10k-reqstudio
 python -m venv .venv
 . .venv/bin/activate
-pip install -r requirements.txt
+python -m pip install --upgrade pip
+python -m pip install .
 python app.py
 ```
 
@@ -270,16 +279,10 @@ ReqStudio was built around the **Y10K principles**:
 ## Packaging (optional)
 
 To create a standalone app:
-- **PyInstaller**: one-file or one-folder bundles per OS.
+- **Windows (PyInstaller):** use the provided script `install/windows/pyinstaller/build_pyinstaller.ps1`.
+- **Windows (Installer):** compile `install/windows/inno/setup.iss` with Inno Setup (runs venv installer post-install).
+- **macOS (.app bundle):** run `install/macos/create_app_bundle.sh` (uses the repo’s `.venv/bin/pythonw`).
 - Sign binaries as needed (organization-specific).
-
-Example command (very rough):
-```bash
-pip install pyinstaller
-pyinstaller --name "Y10K ReqStudio" --noconfirm --windowed app.py
-```
-
-Contributions to set up polished build scripts are welcome.
 
 ---
 

@@ -1,0 +1,30 @@
+<h1>HTML Renderer</h1>
+<p>
+  The renderer in <code>core/renderer.py</code> turns Markdown into HTML for the preview pane and PDF export pipeline.
+  It supports Markdown Extra (tables, fenced code) and syntax-highlighted code blocks via Pygments when available.
+</p>
+
+<h2>Rendering Pipeline</h2>
+<ul>
+  <li>Preprocesses custom tags: <code>{color:...}...{/color}</code> and <code>{highlight:...}...{/highlight}</code>.</li>
+  <li>Uses <code>markdown</code> with <code>extra</code> and <code>codehilite</code> extensions when installed.</li>
+  <li>Falls back to a safe <code>&lt;pre&gt;</code> block when Markdown/Pygments are not present.</li>
+  <li>Provides a helper to emit Pygments CSS for dark or light themes.</li>
+</ul>
+
+<h2>APIs</h2>
+<pre><code>render_markdown_html(text: str, css: str) -> str
+  # Returns a full HTML document string; include your CSS for preview/export.
+
+pygments_css(dark: bool) -> str
+  # Returns CSS for the <code>.codehilite</code> class to style highlighted code.
+</code></pre>
+
+<h2>Custom Tags</h2>
+<pre><code>{color:red}Important{/color}
+{highlight:yellow}Note{/highlight}
+</code></pre>
+<p>
+  These are transformed into inline <code>span</code> elements with corresponding CSS inline styles.
+</p>
+

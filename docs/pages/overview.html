@@ -24,11 +24,12 @@
 <h2>Repository Layout</h2>
 <pre><code>.
 ├─ app.py                 # PyQt6 desktop app entry/component
-├─ core/                  # Core modules: Git, highlighting, templates, utils
-├─ api/                   # API stubs (FastAPI, MCP, pluggable backends)
+├─ core/                  # Core modules: Git, highlighting, renderer, templates, utils
+├─ api/                   # API stubs + docs server (FastAPI)
 ├─ dbms/                  # DBMS scaffolding (future)
 ├─ media/                 # Branding and images
-├─ docs/                  # This documentation site
+├─ docs/                  # This documentation site (SPA + static builder)
+├─ install/               # Installers (Unix, Windows, Docker), packaging helpers
 ├─ README.md              # Project overview and guide
 └─ pyproject.toml         # Packaging and dependencies
 </code></pre>

@@ -2,7 +2,7 @@ import sys
 from pathlib import Path
 import difflib
 
-from PyQt6.QtCore import Qt, QSettings, QSaveFile
+from PyQt6.QtCore import Qt, QSettings, QSaveFile, QTimer, QStandardPaths
 from PyQt6.QtGui import QAction, QFont, QTextCursor, QTextDocument, QIcon
 from PyQt6.QtWidgets import (
     QApplication,
@@ -30,7 +30,7 @@ from PyQt6.QtPrintSupport import QPrinter
 
 from core.git_backend import GitFacade, GitError
 from core.highlighter import MarkdownHighlighter, LivePreviewHighlighter
-from core.renderer import render_markdown_html
+from core.renderer import render_markdown_html, pygments_css
 from core.ui.search import SearchDock
 from core.ui.theme import apply_theme
 from core.templates import TEMPLATES
@@ -232,11 +232,15 @@ class MainWindow(QMainWindow):
         """.strip()
 
         self._md_css_current = self._md_css_dark if getattr(self, "dark_theme", False) else self._md_css_light
+        self._pyg_css_current = pygments_css(getattr(self, "dark_theme", False))
 
         # Accent color (WORKPLAN): RGB(219,137,200)
         self.accent_css = "#DB89C8"
         # Apply saved theme (default light)
-        if (self.settings.value("theme", "light") or "light") == "dark":
+        mode = self.settings.value("theme_mode", "light")
+        if mode == "system":
+            self._apply_system_theme()
+        elif (self.settings.value("theme", "light") or "light") == "dark":
             self.dark_theme = True
             apply_theme(self, True, self.accent_css)
         else:
@@ -261,6 +265,15 @@ class MainWindow(QMainWindow):
         # Editor context menu with formatting actions
         self.editor.setContextMenuPolicy(Qt.ContextMenuPolicy.CustomContextMenu)
         self.editor.customContextMenuRequested.connect(self.on_context_menu)
+
+        # Auto-save timer
+        self.autosave_path = Path(QStandardPaths.writableLocation(QStandardPaths.StandardLocation.AppDataLocation) or ".") / "reqstudio_autosave.md"
+        self.autosave_path.parent.mkdir(parents=True, exist_ok=True)
+        self.autosave = QTimer(self)
+        self.autosave.setInterval(15000)
+        self.autosave.timeout.connect(self._on_autosave)
+        self.autosave.start()
+        self._maybe_restore_autosave()
 
     def _make_actions(self):
         self.act_new = QAction("Ny", self)
@@ -421,10 +434,34 @@ class MainWindow(QMainWindow):
             act.triggered.connect(lambda checked=False, hv=hexv: self.on_colorize_apply(hv))
             m_color.addAction(act)
             self.color_presets.append(act)
+        # Highlight submenu
+        m_high = m_color.addMenu("Highlight")
+        self.act_high_pick = QAction("Pick Highlight…", self)
+        self.act_high_pick.triggered.connect(self.on_highlight_pick)
+        m_high.addAction(self.act_high_pick)
+        m_high.addSeparator()
+        hl_presets = [
+            ("Yellow", "#fff59d"),
+            ("Green", "#a5d6a7"),
+            ("Blue", "#90caf9"),
+            ("Pink", "#f8bbd0"),
+        ]
+        for name, hv in hl_presets:
+            act = QAction(name, self)
+            act.triggered.connect(lambda checked=False, col=hv: self.on_highlight_apply(col))
+            m_high.addAction(act)
 
         m_view = self.menuBar().addMenu("&Visa")
         m_view.addAction(self.act_theme_light)
         m_view.addAction(self.act_theme_dark)
+        self.act_theme_system = QAction("Follow System Theme", self)
+        self.act_theme_system.setCheckable(True)
+        self.act_theme_system.setChecked(self.settings.value("theme_mode", "light") == "system")
+        m_view.addAction(self.act_theme_system)
+
+        m_help = self.menuBar().addMenu("&Hjälp")
+        self.act_about = QAction("About ReqStudio", self)
+        m_help.addAction(self.act_about)
 
     def _make_toolbar(self):
         tb = QToolBar("Snabbverktyg")
@@ -488,6 +525,8 @@ class MainWindow(QMainWindow):
         self.act_split_view.toggled.connect(self.on_toggle_split_view)
         self.act_theme_light.triggered.connect(self.on_theme_light)
         self.act_theme_dark.triggered.connect(self.on_theme_dark)
+        self.act_theme_system.triggered.connect(self.on_theme_system)
+        self.act_about.triggered.connect(self.on_about)
         self.act_set_api_url.triggered.connect(self.on_set_api_url)
         # Formatting signals
         self.act_bold.triggered.connect(self.on_bold)
@@ -528,7 +567,8 @@ class MainWindow(QMainWindow):
         return f"<html><head><meta charset='utf-8'><style>{self._md_css}</style></head><body>{body}</body></html>"
 
     def update_preview(self):
-        html = render_markdown_html(self.editor.toPlainText(), self._md_css_current)
+        css = self._md_css_current + "\n" + (self._pyg_css_current or "")
+        html = render_markdown_html(self.editor.toPlainText(), css)
         self.preview.setHtml(html)
 
     def on_toggle_preview_mode(self, enabled: bool):
@@ -656,6 +696,28 @@ class MainWindow(QMainWindow):
         except Exception as e:
             QMessageBox.critical(self, "Open", f"Failed to open file: {e}")
 
+    def _on_autosave(self):
+        try:
+            if not self.editor.document().isModified():
+                return
+            text = self.editor.toPlainText()
+            with open(self.autosave_path, "w", encoding="utf-8") as f:
+                f.write(text)
+        except Exception:
+            pass
+
+    def _maybe_restore_autosave(self):
+        try:
+            if self.autosave_path.exists() and self.autosave_path.stat().st_size > 0:
+                ret = QMessageBox.question(self, "Restore unsaved work", "An autosave was found. Restore it?",
+                                           QMessageBox.StandardButton.Yes | QMessageBox.StandardButton.No)
+                if ret == QMessageBox.StandardButton.Yes:
+                    with open(self.autosave_path, "r", encoding="utf-8") as f:
+                        self.editor.setPlainText(f.read())
+                    self.update_status()
+        except Exception:
+            pass
+
     def on_open_workspace(self):
         d = QFileDialog.getExistingDirectory(self, "Välj arbetsyta (mapp)")
         if not d:
@@ -715,7 +777,8 @@ class MainWindow(QMainWindow):
         printer = QPrinter(QPrinter.PrinterMode.HighResolution)
         printer.setOutputFormat(QPrinter.OutputFormat.PdfFormat)
         printer.setOutputFileName(path)
-        html = render_markdown_html(self.editor.toPlainText(), self._md_css_current)
+        css = self._md_css_current + "\n" + (self._pyg_css_current or "")
+        html = render_markdown_html(self.editor.toPlainText(), css)
         doc = QTextDocument()
         doc.setHtml(html)
         doc.print(printer)
@@ -781,6 +844,19 @@ class MainWindow(QMainWindow):
             return
         sel = c.selectedText().replace('\u2029', '\n')
         c.insertText(f"{{color:{color_hex}}}{sel}{{/color}}")
+
+    def on_highlight_pick(self):
+        col = QColorDialog.getColor()
+        if not col.isValid():
+            return
+        self.on_highlight_apply(col.name())
+
+    def on_highlight_apply(self, color_hex: str):
+        c = self.editor.textCursor()
+        if not c.hasSelection():
+            return
+        sel = c.selectedText().replace('\u2029', '\n')
+        c.insertText(f"{{highlight:{color_hex}}}{sel}{{/highlight}}")
 
     def on_heading(self, level: int):
         c = self.editor.textCursor()
@@ -894,22 +970,74 @@ class MainWindow(QMainWindow):
     def on_theme_light(self):
         apply_theme(self, False, self.accent_css)
         self.dark_theme = False
+        self.settings.setValue("theme_mode", "light")
         self.act_theme_light.setChecked(True)
         self.act_theme_dark.setChecked(False)
+        self.act_theme_system.setChecked(False)
         self.settings.setValue("theme", "light")
         self._md_css_current = self._md_css_light
+        self._pyg_css_current = pygments_css(False)
         if self.preview.isVisible():
             self.update_preview()
 
     def on_theme_dark(self):
         apply_theme(self, True, self.accent_css)
         self.dark_theme = True
+        self.settings.setValue("theme_mode", "dark")
         self.act_theme_light.setChecked(False)
         self.act_theme_dark.setChecked(True)
+        self.act_theme_system.setChecked(False)
         self.settings.setValue("theme", "dark")
         self._md_css_current = self._md_css_dark
+        self._pyg_css_current = pygments_css(True)
         if self.preview.isVisible():
             self.update_preview()
+
+    def on_theme_system(self):
+        self.settings.setValue("theme_mode", "system")
+        self.act_theme_system.setChecked(True)
+        # Uncheck explicit modes
+        self.act_theme_light.setChecked(False)
+        self.act_theme_dark.setChecked(False)
+        self._apply_system_theme()
+        if self.preview.isVisible():
+            self.update_preview()
+
+    def _apply_system_theme(self):
+        # Simple detection based on palette lightness
+        pal = self.palette()
+        base = pal.window().color()
+        # luminance
+        lum = 0.2126 * base.redF() + 0.7152 * base.greenF() + 0.0722 * base.blueF()
+        dark = lum < 0.5
+        self.dark_theme = dark
+        apply_theme(self, dark, self.accent_css)
+        self._md_css_current = self._md_css_dark if dark else self._md_css_light
+        self._pyg_css_current = pygments_css(dark)
+
+    # About dialog with logo + animation
+    def on_about(self):
+        from PyQt6.QtWidgets import QDialog, QVBoxLayout, QLabel
+        from PyQt6.QtGui import QMovie
+        dlg = QDialog(self)
+        dlg.setWindowTitle("About ReqStudio")
+        v = QVBoxLayout(dlg)
+        lab_logo = QLabel()
+        p = Path("media") / "reqstudio_logo.png"
+        if p.exists():
+            lab_logo.setPixmap(QIcon(str(p)).pixmap(120,120))
+        v.addWidget(lab_logo)
+        lab_gif = QLabel()
+        gif_path = Path("media") / "feather-pen.gif"
+        if gif_path.exists():
+            mv = QMovie(str(gif_path))
+            lab_gif.setMovie(mv)
+            mv.start()
+            v.addWidget(lab_gif)
+        lab_txt = QLabel("Y10K ReqStudio — Modern Markdown Editor")
+        v.addWidget(lab_txt)
+        dlg.resize(300, 280)
+        dlg.exec()
 
     # Tools
     def on_find(self):

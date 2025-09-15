@@ -1,7 +1,9 @@
 <h1>Install</h1>
 <p>
-  ReqStudio targets Python 3.10+ and uses PyQt6 for the desktop UI. You can run it directly from source
-  in a virtual environment. Installation uses <code>pyproject.toml</code> (PEP 621) — no <code>requirements.txt</code> is required.
+  ReqStudio targets Python 3.10+ and uses PyQt6 for the desktop UI. Install from source via <code>pyproject.toml</code>,
+  or use the platform scripts under <code>install/</code>. Installers attempt headless Python (and Git) installation
+  when missing.
+  
 </p>
 
 <h2>Prerequisites</h2>
@@ -11,7 +13,7 @@
   <li>Platform Qt dependencies (PyQt6 wheels handle most cases)</li>
 </ul>
 
-<h2>Setup</h2>
+<h2>Setup (from source)</h2>
 <pre><code># 1) Create and activate a virtual environment
 python -m venv .venv
 . .venv/bin/activate     # Windows: .venv\\Scripts\\activate
@@ -26,6 +28,21 @@ python -m pip install .
 # 3) Run the app
 python app.py
 </code></pre>
+
+<h2>Platform Installers</h2>
+<ul>
+  <li><strong>Linux/macOS</strong>: <code>install/unix/install_reqstudio.sh</code> — creates <code>.venv</code>, installs the project, adds a launcher at <code>~/.local/bin/reqstudio</code>. Attempts to install Python/Git if missing.</li>
+  <li><strong>Windows</strong>: <code>install/windows/install_reqstudio.ps1</code> — creates <code>.venv</code>, installs, adds Start Menu/Desktop shortcuts; headless Python install via <code>winget</code>/<code>choco</code>/python.org if needed.</li>
+  <li><strong>Windows Inno Setup</strong>: <code>install/windows/inno/setup.iss</code> — builds an installer that runs the PowerShell installer post-copy.</li>
+  <li><strong>Windows PyInstaller</strong>: <code>install/windows/pyinstaller/build_pyinstaller.ps1</code> — builds a self-contained <code>ReqStudio.exe</code>.</li>
+  <li><strong>macOS .app bundle</strong>: <code>install/macos/create_app_bundle.sh</code> — creates <code>ReqStudio.app</code> that launches via <code>.venv/bin/pythonw</code>.</li>
+</ul>
+
+<h2>Docs Server (optional)</h2>
+<ul>
+  <li>FastAPI server: <code>python -m api.docs_server</code> (default <code>http://127.0.0.1:8808/docs/</code>).</li>
+  <li>Docker: build and run <code>install/docker/Dockerfile</code> or <code>docker-compose.yml</code>.</li>
+</ul>
 
 <h2>Notes</h2>
 <ul>

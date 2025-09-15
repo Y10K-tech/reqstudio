@@ -10,7 +10,7 @@
   <li><strong>Stage & commit</strong>: Stage all or specific paths; guard against empty commits.</li>
   <li><strong>Branches</strong>: List, create, and checkout branches (detached HEAD handled).</li>
   <li><strong>History</strong>: Per-file log with hash, author, time, and message.</li>
-  <li><strong>Blame-like view</strong>: Load file contents at any commit for comparison.</li>
+  <li><strong>Blame-like view</strong>: Load file contents at any commit for comparison (open past versions inline).</li>
   <li><strong>Push/Pull</strong>: Basic remote operations when a remote is configured.</li>
 </ul>
 
@@ -41,4 +41,3 @@ log_file(relpath, max_count=100) -> list[commit]
 get_file_at_commit(hash, relpath) -> str
 push() / pull()
 </code></pre>
-

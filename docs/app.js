@@ -37,6 +37,7 @@
         { id: "core", title: "Core Package" },
         { id: "core-git-backend", title: "Git Backend" },
         { id: "core-highlighter", title: "Markdown Highlighter" },
+        { id: "core-renderer", title: "HTML Renderer" },
         { id: "core-templates", title: "Template Library" },
         { id: "core-utils", title: "Utilities" },
         { id: "dbms", title: "DBMS (future)" },

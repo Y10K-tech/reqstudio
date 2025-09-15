@@ -27,6 +27,15 @@ DOCS_HOST=0.0.0.0 DOCS_PORT=8080 python -m api.docs_server
 # http://127.0.0.1:8808/docs/
 </code></pre>
 
+<h2>Docker</h2>
+<pre><code># Build and run image
+docker build -f install/docker/Dockerfile -t reqstudio-docs .
+docker run --rm -p 8808:8808 reqstudio-docs
+
+# Or with compose
+docker compose -f install/docker/docker-compose.yml up --build
+</code></pre>
+
 <h2>Endpoints</h2>
 <ul>
   <li><code>/</code> — Redirects to <code>/docs/</code></li>

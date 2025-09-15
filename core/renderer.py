@@ -7,6 +7,11 @@ try:
 except Exception:  # pragma: no cover
     _markdown = None
 
+try:
+    from pygments.formatters import HtmlFormatter
+except Exception:  # pragma: no cover
+    HtmlFormatter = None
+
 
 def _transform_custom_tags(text: str) -> str:
     # {color:<val>}...{/color} -> <span style="color:<val>">...</span>
@@ -54,4 +59,17 @@ def render_markdown_html(text: str, css: str) -> str:
                 .replace(">", "&gt;")
             )
             body = f"<pre>{safe}</pre>"
+    # Simple task list post-processing: turn [ ] / [x] at list starts into checkboxes
+    body = re.sub(r"<li>\s*\[ \]\s+", "<li><input type='checkbox' disabled> ", body)
+    body = re.sub(r"<li>\s*\[x\]\s+", "<li><input type='checkbox' checked disabled> ", body, flags=re.IGNORECASE)
     return f"<html><head><meta charset='utf-8'><style>{css}</style></head><body>{body}</body></html>"
+
+
+def pygments_css(dark: bool) -> str:
+    if not HtmlFormatter:
+        return ""
+    style = 'monokai' if dark else 'default'
+    try:
+        return HtmlFormatter(style=style).get_style_defs('.codehilite')
+    except Exception:
+        return HtmlFormatter().get_style_defs('.codehilite')

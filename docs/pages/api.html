@@ -14,10 +14,10 @@
 </ul>
 
 <h2>Examples (future)</h2>
-<pre><code># FastAPI run (example sketch)
-uvicorn reqstudio.api:app --reload
+<pre><code># FastAPI docs server (static docs)
+python -m api.docs_server
+# Default: http://127.0.0.1:8808/docs/
 
-# MCP tool invocation (example sketch)
+# MCP tool invocation (example sketch; subject to change)
 mcp run reqstudio --op="validate" --path docs/*.md
 </code></pre>
-
