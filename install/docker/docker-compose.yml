@@ -1,0 +1,8 @@
+services:
+  reqstudio-docs:
+    build:
+      context: ../..
+      dockerfile: install/docker/Dockerfile
+    ports:
+      - "8808:8808"
+    restart: unless-stopped

@@ -19,6 +19,7 @@ dependencies = [
   "PyQt6>=6.5",
   "GitPython>=3.1",
   "markdown>=3.4",
+  "Pygments>=2.18",
   "fastapi",
   "fastmcp",
   "cython",
@@ -26,7 +27,9 @@ dependencies = [
   "alembic",
   "typer",
   "rich",
-  "uvicorn"
+  "uvicorn",
+  "pyinstaller",
+  "uv"
 ]
 
 [project.optional-dependencies]

@@ -72,6 +72,9 @@ class LivePreviewHighlighter(QSyntaxHighlighter):
         self.fmt_code.setFontFamily("Monospace")
         self.fmt_code.setBackground(QColor("#f0f0f0"))
 
+        self.fmt_quote = QTextCharFormat()
+        self.fmt_quote.setForeground(QColor("#666"))
+
         # Heading point sizes
         self.h_sizes = {1: 22, 2: 18, 3: 16, 4: 14, 5: 13, 6: 12}
 
@@ -148,5 +151,72 @@ class LivePreviewHighlighter(QSyntaxHighlighter):
 
     def highlightBlock(self, text: str):
         block_pos = self.currentBlock().position()
+        # Code fences (multi-line)
+        state = self.previousBlockState()
+        in_fence = state == 1
+        fence_rx = QRegularExpression(r"^\s*```")
+        if in_fence:
+            # Style whole line as code
+            self.setFormat(0, len(text), self.fmt_code)
+            # Closing fence?
+            if fence_rx.match(text).hasMatch():
+                # Hide/soften fence markers if caret not inside
+                if not (block_pos <= self.caret_pos < block_pos + len(text)):
+                    self.setFormat(0, len(text), self.fmt_code)
+                self.setCurrentBlockState(0)
+            else:
+                self.setCurrentBlockState(1)
+            return
+        else:
+            # Opening fence
+            if fence_rx.match(text).hasMatch():
+                # Soften fence line and switch to fence state
+                self.setFormat(0, len(text), self.fmt_code)
+                self.setCurrentBlockState(1)
+                return
+            else:
+                self.setCurrentBlockState(0)
+
+        # Single-line constructs
         self._apply_heading(text, block_pos)
+        self._apply_lists(text, block_pos)
+        self._apply_blockquote(text, block_pos)
         self._apply_emphasis(text, block_pos)
+
+    def _apply_lists(self, text: str, block_pos: int):
+        # Unordered: - or *
+        rx_ul = QRegularExpression(r"^(\s{0,3})([-*])\s+(.*)$")
+        m = rx_ul.match(text)
+        if m.hasMatch():
+            indent, marker, rest = m.captured(1), m.captured(2), m.captured(3)
+            start = len(indent)
+            end = start + 2  # 'x '
+            caret_in_markers = block_pos + start <= self.caret_pos < block_pos + end
+            if not caret_in_markers:
+                self.setFormat(start, end - start, self.fmt_marker)
+            return
+        # Ordered: 1. or 1)
+        rx_ol = QRegularExpression(r"^(\s{0,3})(\d+)[\.)]\s+(.*)$")
+        m = rx_ol.match(text)
+        if m.hasMatch():
+            indent, digits = m.captured(1), m.captured(2)
+            start = len(indent)
+            end = start + len(digits) + 2
+            caret_in_markers = block_pos + start <= self.caret_pos < block_pos + end
+            if not caret_in_markers:
+                self.setFormat(start, end - start, self.fmt_marker)
+            return
+
+    def _apply_blockquote(self, text: str, block_pos: int):
+        rx = QRegularExpression(r"^(\s{0,3})(>)\s?(.*)$")
+        m = rx.match(text)
+        if not m.hasMatch():
+            return
+        indent, gt, rest = m.captured(1), m.captured(2), m.captured(3)
+        start = len(indent)
+        end = start + 1 + (1 if text[start+1:start+2] == ' ' else 0)
+        caret_in_markers = block_pos + start <= self.caret_pos < block_pos + end
+        if not caret_in_markers:
+            self.setFormat(start, end - start, self.fmt_marker)
+        if rest:
+            self.setFormat(end, max(0, len(text) - end), self.fmt_quote)

@@ -1,22 +1,54 @@
 env/
 
-# core
-core/__pycache__
+# Python
+__pycache__/
+*.py[cod]
+*.pyo
+*.tmp
+*.log
+.pytest_cache/
+.coverage*
+.mypy_cache/
+.ruff_cache/
+.tox/
+*.egg-info/
+*.eggs/
+build/
+dist/
+
+# Core
+core/__pycache__/
 core/*.logs
 
-
-#root
-__pycache__
+# Root
 issues.md
 ISSUES.MD
 y10k_reqstudio.egg-info
-*.egg-info
 
-#api
+# API
 api/*.egg-info
 
-#dbms
-dmbs/*.egg-info
-#install
+# DBMS
+dbms/*.egg-info
 
+# Virtual environments
+.venv/
+venv/
 
+# Editors
+.idea/
+.vscode/
+
+# OS files
+.DS_Store
+Thumbs.db
+
+# Docs build output
+docs/site/
+
+# Install artifacts
+install/macos/out/
+# PyInstaller outputs (redundant with dist/build but explicit)
+install/windows/pyinstaller/dist/
+install/windows/pyinstaller/build/
+*.spec

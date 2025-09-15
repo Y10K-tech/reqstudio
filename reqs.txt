@@ -8,4 +8,5 @@
   "alembic",
   "typer",
   "rich",
-  "uvicorn"
+  "uvicorn",
+  "pyinstaller"

@@ -3,7 +3,7 @@ from pathlib import Path
 import difflib
 
 from PyQt6.QtCore import Qt, QSettings, QSaveFile
-from PyQt6.QtGui import QAction, QFont, QTextCursor, QTextDocument
+from PyQt6.QtGui import QAction, QFont, QTextCursor, QTextDocument, QIcon
 from PyQt6.QtWidgets import (
     QApplication,
     QMainWindow,
@@ -22,12 +22,17 @@ from PyQt6.QtWidgets import (
     QLineEdit,
     QPushButton,
     QInputDialog,
-    QStackedWidget,
+    QSplitter,
+    QDockWidget,
+    QColorDialog,
 )
 from PyQt6.QtPrintSupport import QPrinter
 
 from core.git_backend import GitFacade, GitError
 from core.highlighter import MarkdownHighlighter, LivePreviewHighlighter
+from core.renderer import render_markdown_html
+from core.ui.search import SearchDock
+from core.ui.theme import apply_theme
 from core.templates import TEMPLATES
 from core.utils import detect_srs_ids, normalize_newlines
 
@@ -149,6 +154,11 @@ class MainWindow(QMainWindow):
 
         self.settings = QSettings(ORG, APP_NAME)
 
+        # App icon
+        icon_path = str(Path("media") / "reqstudio_logo.png")
+        if Path(icon_path).exists():
+            self.setWindowIcon(QIcon(icon_path))
+
         # Source editor
         self.editor = QTextEdit()
         font = QFont("Consolas")
@@ -157,15 +167,17 @@ class MainWindow(QMainWindow):
         self.editor.setFont(font)
         self.highlighter = MarkdownHighlighter(self.editor.document(), SRS_ID_REGEX)
 
-        # Rendered preview (single-pane mode when active)
+        # Rendered preview (side-by-side when enabled)
         self.preview = QTextEdit()
         self.preview.setReadOnly(True)
         self.preview.setAcceptRichText(True)
 
-        self.stack = QStackedWidget()
-        self.stack.addWidget(self.editor)   # index 0
-        self.stack.addWidget(self.preview)  # index 1
-        self.setCentralWidget(self.stack)
+        # Central splitter for side-by-side edit/preview
+        self.splitter = QSplitter(Qt.Orientation.Horizontal)
+        self.splitter.addWidget(self.editor)
+        self.splitter.addWidget(self.preview)
+        self.preview.setVisible(False)
+        self.setCentralWidget(self.splitter)
 
         self.status = QStatusBar()
         self.setStatusBar(self.status)
@@ -174,23 +186,62 @@ class MainWindow(QMainWindow):
         self.workspace: Path | None = None
         self.repo = GitFacade()
 
-        self._md_css = """
+        self._md_css_light = """
         body { font-family: system-ui, Segoe UI, Roboto, Helvetica, Arial, sans-serif; font-size: 14px; color: #222; }
+        h1,h2,h3,h4,h5,h6 { color: #111; }
         h1 { font-size: 1.8em; margin: 0.8em 0 0.4em; }
         h2 { font-size: 1.6em; margin: 0.8em 0 0.4em; }
         h3 { font-size: 1.4em; margin: 0.8em 0 0.4em; }
         h4 { font-size: 1.2em; margin: 0.8em 0 0.4em; }
         h5 { font-size: 1.1em; margin: 0.8em 0 0.4em; }
         h6 { font-size: 1.0em; margin: 0.8em 0 0.4em; }
+        a { color: #DB89C8; text-decoration: none; }
+        a:hover { text-decoration: underline; }
         p { margin: 0.4em 0 0.8em; }
         ul, ol { margin: 0.4em 0 0.8em 1.4em; }
         code { background: #f5f5f5; padding: 0 3px; border-radius: 3px; }
         pre { background: #f5f5f5; padding: 8px; border-radius: 4px; overflow-x: auto; }
         table { border-collapse: collapse; margin: 0.8em 0; }
         th, td { border: 1px solid #ddd; padding: 6px 10px; }
+        th { background: #fafafa; }
         blockquote { border-left: 3px solid #ccc; margin: 0.8em 0; padding: 0.2em 0 0.2em 0.8em; color: #555; }
         hr { border: none; border-top: 1px solid #ddd; margin: 1em 0; }
         """.strip()
+
+        self._md_css_dark = """
+        body { font-family: system-ui, Segoe UI, Roboto, Helvetica, Arial, sans-serif; font-size: 14px; color: #eaeaea; background: transparent; }
+        h1,h2,h3,h4,h5,h6 { color: #fafafa; }
+        h1 { font-size: 1.8em; margin: 0.8em 0 0.4em; }
+        h2 { font-size: 1.6em; margin: 0.8em 0 0.4em; }
+        h3 { font-size: 1.4em; margin: 0.8em 0 0.4em; }
+        h4 { font-size: 1.2em; margin: 0.8em 0 0.4em; }
+        h5 { font-size: 1.1em; margin: 0.8em 0 0.4em; }
+        h6 { font-size: 1.0em; margin: 0.8em 0 0.4em; }
+        a { color: #DB89C8; text-decoration: none; }
+        a:hover { text-decoration: underline; }
+        p { margin: 0.4em 0 0.8em; }
+        ul, ol { margin: 0.4em 0 0.8em 1.4em; }
+        code { background: #2a2a2a; color: #f0f0f0; padding: 0 3px; border-radius: 3px; }
+        pre { background: #2a2a2a; color: #f0f0f0; padding: 8px; border-radius: 4px; overflow-x: auto; }
+        table { border-collapse: collapse; margin: 0.8em 0; }
+        th, td { border: 1px solid #444; padding: 6px 10px; }
+        th { background: #2a2a2a; }
+        tr:nth-child(even) td { background: #1d1d1d; }
+        blockquote { border-left: 3px solid #444; margin: 0.8em 0; padding: 0.2em 0 0.2em 0.8em; color: #cfcfcf; }
+        hr { border: none; border-top: 1px solid #444; margin: 1em 0; }
+        """.strip()
+
+        self._md_css_current = self._md_css_dark if getattr(self, "dark_theme", False) else self._md_css_light
+
+        # Accent color (WORKPLAN): RGB(219,137,200)
+        self.accent_css = "#DB89C8"
+        # Apply saved theme (default light)
+        if (self.settings.value("theme", "light") or "light") == "dark":
+            self.dark_theme = True
+            apply_theme(self, True, self.accent_css)
+        else:
+            self.dark_theme = False
+            apply_theme(self, False, self.accent_css)
 
         self._make_actions()
         self._make_menus()
@@ -201,8 +252,15 @@ class MainWindow(QMainWindow):
         if last_ws and Path(last_ws).exists():
             self.load_workspace(Path(last_ws))
 
-        self.stack.setCurrentIndex(0)
         self.update_status()
+        # Search dock (pave for semantic index API)
+        self.search_dock = SearchDock(parent=self)
+        self.addDockWidget(Qt.DockWidgetArea.RightDockWidgetArea, self.search_dock)
+        self.search_dock.searchRequested.connect(self.on_search_requested)
+
+        # Editor context menu with formatting actions
+        self.editor.setContextMenuPolicy(Qt.ContextMenuPolicy.CustomContextMenu)
+        self.editor.customContextMenuRequested.connect(self.on_context_menu)
 
     def _make_actions(self):
         self.act_new = QAction("Ny", self)
@@ -248,6 +306,39 @@ class MainWindow(QMainWindow):
         self.act_inline_live.setCheckable(True)
         self.act_inline_live.setChecked(False)
 
+        self.act_split_view = QAction("Split View (Preview)", self)
+        self.act_split_view.setCheckable(True)
+        self.act_split_view.setChecked(False)
+
+        self.act_theme_light = QAction("Light Theme", self)
+        self.act_theme_light.setCheckable(True)
+        self.act_theme_dark = QAction("Dark Theme", self)
+        self.act_theme_dark.setCheckable(True)
+        self.act_theme_light.setChecked(True)
+
+        self.act_set_api_url = QAction("Set Semantic API URL…", self)
+
+        # Formatting actions
+        self.act_bold = QAction("Bold", self)
+        self.act_bold.setShortcut("Ctrl+B")
+        self.act_italic = QAction("Italic", self)
+        self.act_italic.setShortcut("Ctrl+I")
+        # Headings H1..H6
+        self.act_h1 = QAction("Heading 1", self); self.act_h1.setShortcut("Ctrl+1")
+        self.act_h2 = QAction("Heading 2", self); self.act_h2.setShortcut("Ctrl+2")
+        self.act_h3 = QAction("Heading 3", self); self.act_h3.setShortcut("Ctrl+3")
+        self.act_h4 = QAction("Heading 4", self); self.act_h4.setShortcut("Ctrl+4")
+        self.act_h5 = QAction("Heading 5", self); self.act_h5.setShortcut("Ctrl+5")
+        self.act_h6 = QAction("Heading 6", self); self.act_h6.setShortcut("Ctrl+6")
+        # Lists / quote / code / link / image
+        self.act_ulist = QAction("Unordered List", self); self.act_ulist.setShortcut("Ctrl+Shift+U")
+        self.act_olist = QAction("Ordered List", self); self.act_olist.setShortcut("Ctrl+Shift+O")
+        self.act_check = QAction("Checklist Item", self); self.act_check.setShortcut("Ctrl+Shift+C")
+        self.act_quote = QAction("Blockquote", self); self.act_quote.setShortcut("Ctrl+Shift+Q")
+        self.act_codeblock = QAction("Code Block", self); self.act_codeblock.setShortcut("Ctrl+Shift+K")
+        self.act_link = QAction("Insert Link", self); self.act_link.setShortcut("Ctrl+K")
+        self.act_image = QAction("Insert Image", self); self.act_image.setShortcut("Ctrl+Shift+I")
+
         # Shortcuts
         self.act_new.setShortcut("Ctrl+N")
         self.act_open.setShortcut("Ctrl+O")
@@ -281,6 +372,9 @@ class MainWindow(QMainWindow):
         m_edit.addAction(self.act_paste)
         m_edit.addSeparator()
         m_edit.addAction(self.act_find)
+        self.act_replace = QAction("Find & Replace…", self)
+        self.act_replace.setShortcut("Ctrl+H")
+        m_edit.addAction(self.act_replace)
 
         m_tpl = self.menuBar().addMenu("&Mallar")
         for a in self.template_actions.values():
@@ -301,7 +395,36 @@ class MainWindow(QMainWindow):
         m_tools = self.menuBar().addMenu("&Verktyg")
         m_tools.addAction(self.act_live_preview)
         m_tools.addAction(self.act_inline_live)
+        m_tools.addAction(self.act_split_view)
         m_tools.addAction(self.act_toggle_md)
+        m_tools.addSeparator()
+        m_tools.addAction(self.act_set_api_url)
+
+        m_color = self.menuBar().addMenu("&Colorize")
+        self.act_color_pick = QAction("Pick Color…", self)
+        self.act_color_pick.triggered.connect(self.on_colorize_pick)
+        m_color.addAction(self.act_color_pick)
+        m_color.addSeparator()
+        # Presets
+        presets = [
+            ("Accent", self.accent_css),
+            ("Red", "#e53935"),
+            ("Orange", "#fb8c00"),
+            ("Yellow", "#fdd835"),
+            ("Green", "#43a047"),
+            ("Blue", "#1e88e5"),
+            ("Purple", "#8e24aa"),
+        ]
+        self.color_presets: list[QAction] = []
+        for name, hexv in presets:
+            act = QAction(f"{name}", self)
+            act.triggered.connect(lambda checked=False, hv=hexv: self.on_colorize_apply(hv))
+            m_color.addAction(act)
+            self.color_presets.append(act)
+
+        m_view = self.menuBar().addMenu("&Visa")
+        m_view.addAction(self.act_theme_light)
+        m_view.addAction(self.act_theme_dark)
 
     def _make_toolbar(self):
         tb = QToolBar("Snabbverktyg")
@@ -317,6 +440,10 @@ class MainWindow(QMainWindow):
             tb.addAction(a)
         tb.addSeparator()
         tb.addAction(self.act_live_preview)
+        # Formatting toolbar group
+        tb.addSeparator()
+        for a in [self.act_bold, self.act_italic, self.act_h1, self.act_h2, self.act_h3, self.act_ulist, self.act_olist, self.act_quote]:
+            tb.addAction(a)
 
     def _wire_signals(self):
         self.act_new.triggered.connect(self.on_new)
@@ -351,10 +478,33 @@ class MainWindow(QMainWindow):
         self.act_live_preview.toggled.connect(self.on_toggle_preview_mode)
         self.act_inline_live.toggled.connect(self.on_toggle_inline_live)
         self.editor.cursorPositionChanged.connect(self._on_cursor_pos_changed)
+        self.act_replace.triggered.connect(self.on_replace_dialog)
+        self.editor.cursorPositionChanged.connect(self.update_status)
 
         # Inline live state
         self.live_highlighter = None
         self._inline_prev_blocknum = -1
+
+        self.act_split_view.toggled.connect(self.on_toggle_split_view)
+        self.act_theme_light.triggered.connect(self.on_theme_light)
+        self.act_theme_dark.triggered.connect(self.on_theme_dark)
+        self.act_set_api_url.triggered.connect(self.on_set_api_url)
+        # Formatting signals
+        self.act_bold.triggered.connect(self.on_bold)
+        self.act_italic.triggered.connect(self.on_italic)
+        self.act_h1.triggered.connect(lambda: self.on_heading(1))
+        self.act_h2.triggered.connect(lambda: self.on_heading(2))
+        self.act_h3.triggered.connect(lambda: self.on_heading(3))
+        self.act_h4.triggered.connect(lambda: self.on_heading(4))
+        self.act_h5.triggered.connect(lambda: self.on_heading(5))
+        self.act_h6.triggered.connect(lambda: self.on_heading(6))
+        self.act_ulist.triggered.connect(self.on_ulist)
+        self.act_olist.triggered.connect(self.on_olist)
+        self.act_check.triggered.connect(self.on_check)
+        self.act_quote.triggered.connect(self.on_quote)
+        self.act_codeblock.triggered.connect(self.on_codeblock)
+        self.act_link.triggered.connect(self.on_link)
+        self.act_image.triggered.connect(self.on_image)
 
     # Preview / render
     def render_markdown(self, text: str) -> str:
@@ -378,22 +528,29 @@ class MainWindow(QMainWindow):
         return f"<html><head><meta charset='utf-8'><style>{self._md_css}</style></head><body>{body}</body></html>"
 
     def update_preview(self):
-        html = self.render_markdown(self.editor.toPlainText())
+        html = render_markdown_html(self.editor.toPlainText(), self._md_css_current)
         self.preview.setHtml(html)
 
     def on_toggle_preview_mode(self, enabled: bool):
         # When enabled, switch to rendered preview; when disabled, return to source editor
         if enabled:
             self.update_preview()
-            self.stack.setCurrentIndex(1)
+            # Full preview replaces editor in splitter (hide editor)
+            self.editor.setVisible(False)
+            self.preview.setVisible(True)
         else:
-            self.stack.setCurrentIndex(0)
+            self.editor.setVisible(True)
+            if not self.act_split_view.isChecked():
+                self.preview.setVisible(False)
 
     def on_toggle_inline_live(self, enabled: bool):
         # Inline live is mutually exclusive with full preview; ensure editor is visible
         if enabled:
-            if self.stack.currentIndex() != 0:
-                self.stack.setCurrentIndex(0)
+            if self.act_live_preview.isChecked():
+                self.act_live_preview.setChecked(False)
+            self.editor.setVisible(True)
+            if not self.act_split_view.isChecked():
+                self.preview.setVisible(False)
             # detach normal highlighter
             self.highlighter.setDocument(None)
             # attach live highlighter
@@ -425,6 +582,14 @@ class MainWindow(QMainWindow):
             self.live_highlighter.rehighlightBlock(cur_block)
         self._inline_prev_blocknum = blocknum
 
+    def on_toggle_split_view(self, enabled: bool):
+        # Show both panes side-by-side; disable full preview mode
+        if self.act_live_preview.isChecked():
+            self.act_live_preview.setChecked(False)
+        self.preview.setVisible(enabled)
+        if enabled:
+            self.update_preview()
+
     def on_toggle_highlight(self, enabled: bool):
         if enabled:
             self.highlighter.setDocument(self.editor.document())
@@ -435,7 +600,7 @@ class MainWindow(QMainWindow):
     def on_editor_changed(self):
         self.update_status()
         # If in preview mode, keep it in sync
-        if self.stack.currentIndex() == 1:
+        if self.act_live_preview.isChecked() or self.act_split_view.isChecked():
             self.update_preview()
 
     # File ops
@@ -461,8 +626,35 @@ class MainWindow(QMainWindow):
         self.current_file = Path(path)
         self.update_window_title()
         self.update_status()
-        if self.stack.currentIndex() == 1:
+        if self.act_live_preview.isChecked() or self.act_split_view.isChecked():
             self.update_preview()
+
+    # Drag & Drop open files
+    def dragEnterEvent(self, event):
+        if event.mimeData().hasUrls():
+            event.acceptProposedAction()
+        else:
+            super().dragEnterEvent(event)
+
+    def dropEvent(self, event):
+        urls = event.mimeData().urls()
+        if not urls:
+            return
+        path = urls[0].toLocalFile()
+        if not path:
+            return
+        # Open first file
+        try:
+            with open(path, "r", encoding="utf-8") as f:
+                text = f.read()
+            self.editor.setPlainText(normalize_newlines(text))
+            self.current_file = Path(path)
+            self.update_window_title()
+            self.update_status()
+            if self.act_live_preview.isChecked() or self.act_split_view.isChecked():
+                self.update_preview()
+        except Exception as e:
+            QMessageBox.critical(self, "Open", f"Failed to open file: {e}")
 
     def on_open_workspace(self):
         d = QFileDialog.getExistingDirectory(self, "Välj arbetsyta (mapp)")
@@ -523,11 +715,201 @@ class MainWindow(QMainWindow):
         printer = QPrinter(QPrinter.PrinterMode.HighResolution)
         printer.setOutputFormat(QPrinter.OutputFormat.PdfFormat)
         printer.setOutputFileName(path)
-        html = self.render_markdown(self.editor.toPlainText())
+        html = render_markdown_html(self.editor.toPlainText(), self._md_css_current)
         doc = QTextDocument()
         doc.setHtml(html)
         doc.print(printer)
         self.status.showMessage(f"PDF exporterad: {path}", 5000)
+
+    def on_search_requested(self, q: str):
+        # Placeholder: pave the way for semantic API integration
+        lines = []
+        if q:
+            lines.append(f"Search placeholder for: {q}")
+            api_url = self.settings.value("api_url", "") or "(not configured)"
+            lines.append(f"API: {api_url}")
+        self.search_dock.setResults(lines)
+
+    def on_set_api_url(self):
+        url, ok = QInputDialog.getText(self, "Semantic API", "Base URL (e.g., http://localhost:8000):",
+                                       text=self.settings.value("api_url", ""))
+        if ok:
+            self.settings.setValue("api_url", url.strip())
+            self.status.showMessage("Semantic API URL saved", 3000)
+
+    # Formatting helpers
+    def on_context_menu(self, pos):
+        menu = self.editor.createStandardContextMenu()
+        menu.addSeparator()
+        menu.addAction(self.act_bold)
+        menu.addAction(self.act_italic)
+        menu.addSeparator()
+        for a in [self.act_h1, self.act_h2, self.act_h3, self.act_h4, self.act_h5, self.act_h6]:
+            menu.addAction(a)
+        menu.addSeparator()
+        for a in [self.act_ulist, self.act_olist, self.act_check, self.act_quote, self.act_codeblock, self.act_link, self.act_image]:
+            menu.addAction(a)
+        menu.addSeparator()
+        menu.addAction(self.act_color_pick)
+        menu.exec(self.editor.mapToGlobal(pos))
+
+    def on_bold(self):
+        self._wrap_selection("**")
+
+    def on_italic(self):
+        self._wrap_selection("*")
+
+    def _wrap_selection(self, marker: str):
+        c = self.editor.textCursor()
+        if not c.hasSelection():
+            return
+        sel = c.selectedText()
+        # Replace unicode line separators with newlines in selection
+        sel = sel.replace('\u2029', '\n')
+        c.insertText(f"{marker}{sel}{marker}")
+
+    # Colorize helpers
+    def on_colorize_pick(self):
+        col = QColorDialog.getColor()
+        if not col.isValid():
+            return
+        self.on_colorize_apply(col.name())
+
+    def on_colorize_apply(self, color_hex: str):
+        c = self.editor.textCursor()
+        if not c.hasSelection():
+            return
+        sel = c.selectedText().replace('\u2029', '\n')
+        c.insertText(f"{{color:{color_hex}}}{sel}{{/color}}")
+
+    def on_heading(self, level: int):
+        c = self.editor.textCursor()
+        block = c.block()
+        text = block.text()
+        hashes = '#' * max(1, min(6, level))
+        # Normalize: remove existing heading markers, then apply desired level
+        import re
+        m = re.match(r"^(\s{0,3})(#{1,6})(\s?|\s+)(.*)$", text)
+        content = text
+        indent = ''
+        if m:
+            indent = m.group(1)
+            content = m.group(4)
+        content = content.lstrip()
+        new_line = f"{indent}{hashes} {content}" if content else f"{indent}{hashes} "
+        # Replace current block text
+        doc = self.editor.document()
+        bc = QTextCursor(doc)
+        bc.setPosition(block.position())
+        bc.movePosition(QTextCursor.MoveOperation.EndOfBlock, QTextCursor.MoveMode.KeepAnchor)
+        bc.insertText(new_line)
+
+    def on_ulist(self):
+        self._toggle_prefix("- ")
+
+    def on_olist(self):
+        c = self.editor.textCursor()
+        block = c.block()
+        text = block.text()
+        import re
+        if re.match(r"^\s*\d+[\.)]\s+", text):
+            # remove ordered marker
+            new = re.sub(r"^(\s*)\d+[\.)]\s+", r"\1", text)
+        else:
+            # add '1. '
+            new = re.sub(r"^(\s*)", r"\1", text)
+            new = f"{new if new != text else text}"  # keep
+            new = f"1. {text.lstrip()}" if text.strip() else "1. "
+        self._replace_block_text(block, new)
+
+    def on_check(self):
+        import re
+        c = self.editor.textCursor()
+        block = c.block()
+        text = block.text()
+        if re.match(r"^\s*- \[( |x)\] ", text):
+            # toggle off checklist
+            new = re.sub(r"^(\s*)- \[( |x)\] ", r"\1", text)
+        else:
+            new = re.sub(r"^(\s*)", r"\1", text)
+            new = f"- [ ] {text.lstrip()}" if text.strip() else "- [ ] "
+        self._replace_block_text(block, new)
+
+    def on_quote(self):
+        self._toggle_prefix("> ")
+
+    def on_codeblock(self):
+        c = self.editor.textCursor()
+        if c.hasSelection():
+            sel = c.selectedText().replace('\u2029', '\n')
+            c.insertText(f"```\n{sel}\n```\n")
+        else:
+            c.insertText("```\n\n```\n")
+
+    def on_link(self):
+        from PyQt6.QtWidgets import QInputDialog
+        url, ok = QInputDialog.getText(self, "Insert Link", "URL:")
+        if not ok or not url:
+            return
+        c = self.editor.textCursor()
+        if c.hasSelection():
+            txt = c.selectedText().replace('\u2029', ' ')
+        else:
+            txt = "link"
+        c.insertText(f"[{txt}]({url})")
+
+    def on_image(self):
+        from PyQt6.QtWidgets import QInputDialog
+        url, ok = QInputDialog.getText(self, "Insert Image", "Image URL:")
+        if not ok or not url:
+            return
+        alt, ok = QInputDialog.getText(self, "Insert Image", "Alt text:")
+        if not ok:
+            alt = ""
+        c = self.editor.textCursor()
+        c.insertText(f"![{alt}]({url})")
+
+    def _toggle_prefix(self, prefix: str):
+        import re
+        c = self.editor.textCursor()
+        block = c.block()
+        text = block.text()
+        if text.lstrip().startswith(prefix.strip()):
+            # remove
+            pattern = r"^(\s*)" + re.escape(prefix)
+            new = re.sub(pattern, r"\1", text)
+        else:
+            new = re.sub(r"^(\s*)", r"\1", text)
+            new = f"{prefix}{text.lstrip()}" if text.strip() else prefix
+        self._replace_block_text(block, new)
+
+    def _replace_block_text(self, block, new_text: str):
+        doc = self.editor.document()
+        bc = QTextCursor(doc)
+        bc.setPosition(block.position())
+        bc.movePosition(QTextCursor.MoveOperation.EndOfBlock, QTextCursor.MoveMode.KeepAnchor)
+        bc.insertText(new_text)
+
+    # Themes
+    def on_theme_light(self):
+        apply_theme(self, False, self.accent_css)
+        self.dark_theme = False
+        self.act_theme_light.setChecked(True)
+        self.act_theme_dark.setChecked(False)
+        self.settings.setValue("theme", "light")
+        self._md_css_current = self._md_css_light
+        if self.preview.isVisible():
+            self.update_preview()
+
+    def on_theme_dark(self):
+        apply_theme(self, True, self.accent_css)
+        self.dark_theme = True
+        self.act_theme_light.setChecked(False)
+        self.act_theme_dark.setChecked(True)
+        self.settings.setValue("theme", "dark")
+        self._md_css_current = self._md_css_dark
+        if self.preview.isVisible():
+            self.update_preview()
 
     # Tools
     def on_find(self):
@@ -544,6 +926,11 @@ class MainWindow(QMainWindow):
             self.status.showMessage(f"Hittade '{term}'", 2000)
         else:
             QMessageBox.information(self, "Sök", f"Inget resultat för '{term}'.")
+
+    def on_replace_dialog(self):
+        dlg = FindReplaceDialog(self.editor, self)
+        dlg.resize(420, 180)
+        dlg.exec()
 
     def insert_template(self, key: str):
         meta = TEMPLATES[key]
@@ -680,7 +1067,10 @@ class MainWindow(QMainWindow):
         srs_show = ", ".join(srs) if srs else "–"
         ws = str(self.workspace) if self.workspace else "–"
         cur = str(self.current_file) if self.current_file else "–"
-        self.status.showMessage(f"WS: {ws} | Fil: {cur} | Branch: {branch} | SRS-ID: {srs_show}")
+        c = self.editor.textCursor()
+        pos = f"L{c.blockNumber()+1}:C{c.positionInBlock()+1}"
+        mode = "FullPreview" if self.act_live_preview.isChecked() else ("Split" if self.act_split_view.isChecked() else "Edit")
+        self.status.showMessage(f"WS: {ws} | Fil: {cur} | Branch: {branch} | Pos: {pos} | Mode: {mode} | SRS-ID: {srs_show}")
 
 
 def main():
