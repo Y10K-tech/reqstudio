@@ -21,6 +21,13 @@
 
 ---
 
+## Documentation
+
+- Project documentation website (GitHub Pages):
+  https://y10k-tech.github.io/reqstudio/
+
+---
+
 ## Kort på svenska (Short Swedish summary)
 
 **Y10K ReqStudio** är en Git-driven texteditor för krav/SRS (Markdown). Den har mallar (HL/LL/CMP/ADR/Ticket), PDF-export, commit/historik samt automatisk upptäckt av **SRS-ID**. Öppna en mapp som arbetsyta (Git), skriv krav, committa, exportera.
