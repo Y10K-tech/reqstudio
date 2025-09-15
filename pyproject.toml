@@ -21,7 +21,11 @@ dependencies = [
   "markdown>=3.4",
   "fastapi",
   "fastmcp",
-  "cython"
+  "cython",
+  "SQLAlchemy"
+  "alembic",
+  "typer"
+  "rich"
 ]
 
 [project.optional-dependencies]
