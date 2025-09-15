@@ -60,7 +60,8 @@ def main():
     import uvicorn
 
     host = os.environ.get("DOCS_HOST", "127.0.0.1")
-    port = int(os.environ.get("DOCS_PORT", "8000"))
+    # Use a non-default port to avoid collisions with any primary API service
+    port = int(os.environ.get("DOCS_PORT", "8808"))
     uvicorn.run("api.docs_server:app", host=host, port=port, reload=False)
 
 

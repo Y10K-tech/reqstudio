@@ -106,7 +106,7 @@ Run the server:
 ```
 python -m api.docs_server
 # or
-uvicorn api.docs_server:app --host 127.0.0.1 --port 8000
+uvicorn api.docs_server:app --host 127.0.0.1 --port 8808
 ```
 
 Endpoints:

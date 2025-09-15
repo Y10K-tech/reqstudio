@@ -17,11 +17,14 @@ python -m pip install .
 <pre><code># Option 1: module entrypoint
 python -m api.docs_server
 
-# Option 2: uvicorn directly
-uvicorn api.docs_server:app --host 127.0.0.1 --port 8000
+# Option 2: uvicorn directly (default port 8808)
+uvicorn api.docs_server:app --host 127.0.0.1 --port 8808
 
 # Optional environment overrides
 DOCS_HOST=0.0.0.0 DOCS_PORT=8080 python -m api.docs_server
+
+# Open in your browser
+# http://127.0.0.1:8808/docs/
 </code></pre>
 
 <h2>Endpoints</h2>

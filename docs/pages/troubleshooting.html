@@ -3,7 +3,10 @@
 <h2>PyQt6 Installation Issues</h2>
 <ul>
   <li>Upgrade pip and retry: <code>python -m pip install --upgrade pip</code>.</li>
-  <li>Install from <code>requirements.txt</code> if <code>pyproject.toml</code> resolution fails.</li>
+  <li>Install via <code>pyproject.toml</code>: <code>python -m pip install .</code></li>
+  <li>On Windows, ensure you are using the correct Python (3.10+) and a fresh virtualenv.</li>
+  <li>If wheels fail to resolve, try updating build tools: <code>pip install --upgrade setuptools wheel</code>.</li>
+  
 </ul>
 
 <h2>Git Errors</h2>
@@ -24,4 +27,3 @@
   <li>Use UTF-8 files; normalize line endings (LF) if diffs look odd.</li>
   <li>See <code>normalize_newlines</code> utility behavior for consistency.</li>
 </ul>
-
