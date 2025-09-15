@@ -1,0 +1,5 @@
+PyQt6>=6.5
+GitPython>=3.1
+markdown>=3.4
+fastapi>=0.111
+uvicorn[standard]>=0.30
