@@ -1,4 +1,5 @@
 import sys
+import subprocess
 from pathlib import Path
 import difflib
 
@@ -33,6 +34,8 @@ from core.highlighter import MarkdownHighlighter, LivePreviewHighlighter
 from core.renderer import render_markdown_html, pygments_css
 from core.ui.search import SearchDock
 from core.ui.theme import apply_theme
+from core.ui.findreplace import FindReplaceDialog
+from core.ui.startup import WorkspaceStartupDialog
 from core.templates import TEMPLATES
 from core.utils import detect_srs_ids, normalize_newlines
 
@@ -252,9 +255,13 @@ class MainWindow(QMainWindow):
         self._make_toolbar()
         self._wire_signals()
 
+        # Prompt for workspace at startup, prefilling the last used
         last_ws = self.settings.value("workspace", "")
-        if last_ws and Path(last_ws).exists():
-            self.load_workspace(Path(last_ws))
+        dlg = WorkspaceStartupDialog(last_workspace=last_ws or None, parent=self)
+        dlg.exec()
+        sel = dlg.selected_path()
+        if sel:
+            self.load_workspace(Path(sel))
 
         self.update_status()
         # Search dock (pave for semantic index API)
@@ -405,6 +412,27 @@ class MainWindow(QMainWindow):
         m_git.addAction(self.act_git_pull)
         m_git.addAction(self.act_git_push)
 
+        # Git Extensions
+        m_git_ext = self.menuBar().addMenu("&Git Extensions")
+        self.act_ge_baseline = QAction("Baseline Create…", self)
+        self.act_ge_verify = QAction("Verify", self)
+        self.act_ge_matrix = QAction("Generate Matrix to File…", self)
+        self.act_ge_matrix_store = QAction("Store Matrix (refs/reqstudio/matrix)", self)
+        self.act_ge_notes_add = QAction("Notes Add…", self)
+        self.act_ge_notes_show = QAction("Notes Show…", self)
+        self.act_ge_install_hook = QAction("Install commit-msg hook", self)
+        self.act_ge_install_server = QAction("Install server hooks…", self)
+        self.act_ge_notes_push = QAction("Push notes…", self)
+        self.act_ge_notes_fetch = QAction("Fetch notes…", self)
+        self.act_ge_config_sign = QAction("Configure Git Signing…", self)
+        for a in [
+            self.act_ge_baseline, self.act_ge_verify, self.act_ge_matrix, self.act_ge_matrix_store,
+            self.act_ge_notes_add, self.act_ge_notes_show, self.act_ge_install_hook,
+            self.act_ge_install_server, self.act_ge_notes_push, self.act_ge_notes_fetch,
+            self.act_ge_config_sign
+        ]:
+            m_git_ext.addAction(a)
+
         m_tools = self.menuBar().addMenu("&Verktyg")
         m_tools.addAction(self.act_live_preview)
         m_tools.addAction(self.act_inline_live)
@@ -508,6 +536,18 @@ class MainWindow(QMainWindow):
         self.act_git_history.triggered.connect(self.on_git_history)
         self.act_git_pull.triggered.connect(self.on_git_pull)
         self.act_git_push.triggered.connect(self.on_git_push)
+        # Git extensions wiring
+        self.act_ge_baseline.triggered.connect(self.on_ge_baseline)
+        self.act_ge_verify.triggered.connect(self.on_ge_verify)
+        self.act_ge_matrix.triggered.connect(self.on_ge_matrix)
+        self.act_ge_matrix_store.triggered.connect(self.on_ge_matrix_store)
+        self.act_ge_notes_add.triggered.connect(self.on_ge_notes_add)
+        self.act_ge_notes_show.triggered.connect(self.on_ge_notes_show)
+        self.act_ge_install_hook.triggered.connect(self.on_ge_install_hook)
+        self.act_ge_install_server.triggered.connect(self.on_ge_install_server)
+        self.act_ge_notes_push.triggered.connect(self.on_ge_notes_push)
+        self.act_ge_notes_fetch.triggered.connect(self.on_ge_notes_fetch)
+        self.act_ge_config_sign.triggered.connect(self.on_ge_config_sign)
 
         self.editor.textChanged.connect(self.on_editor_changed)
 
@@ -1157,6 +1197,162 @@ class MainWindow(QMainWindow):
             QMessageBox.information(self, "Git Push", out or "OK")
         except GitError as e:
             QMessageBox.critical(self, "Git-fel", str(e))
+
+    # --- Git Extensions (git-req) ---
+    def _ge_script(self) -> str:
+        return str(Path(__file__).parent / "core" / "git_extensions" / "git-req.py")
+
+    def _ge_run(self, args: list[str], capture: bool = True) -> tuple[int, str, str]:
+        if not self.workspace:
+            QMessageBox.information(self, "Git", "Open a workspace first.")
+            return (1, "", "no workspace")
+        cmd = [sys.executable, self._ge_script()] + args
+        try:
+            if capture:
+                p = subprocess.run(cmd, cwd=str(self.workspace), text=True, stdout=subprocess.PIPE, stderr=subprocess.PIPE)
+                return (p.returncode, p.stdout or "", p.stderr or "")
+            else:
+                p = subprocess.run(cmd, cwd=str(self.workspace))
+                return (p.returncode, "", "")
+        except Exception as e:
+            return (1, "", str(e))
+
+    def on_ge_baseline(self):
+        name, ok = QInputDialog.getText(self, "Baseline", "Baseline name (e.g., v1.2):")
+        if not ok or not name.strip():
+            return
+        rc, out, err = self._ge_run(["baseline-create", name.strip()])
+        if rc == 0:
+            QMessageBox.information(self, "baseline-create", out.strip() or "OK")
+        else:
+            msg = err.strip() or "Failed"
+            # Detect signing failure hints
+            if "gpg" in msg.lower() or "sign" in msg.lower():
+                more = "\n\nSigning appears to be misconfigured. Configure your signing key for this repository."
+                btn = QMessageBox.question(self, "baseline-create", msg + more + "\n\nOpen Git Signing setup now?",
+                                           QMessageBox.StandardButton.Yes | QMessageBox.StandardButton.No)
+                if btn == QMessageBox.StandardButton.Yes:
+                    self.on_ge_config_sign()
+            else:
+                QMessageBox.critical(self, "baseline-create", msg)
+
+    def on_ge_config_sign(self):
+        if not self.workspace:
+            QMessageBox.information(self, "Git", "Open a workspace first.")
+            return
+        from PyQt6.QtWidgets import QDialog, QFormLayout
+        dlg = QDialog(self)
+        dlg.setWindowTitle("Git Signing Configuration")
+        lay = QFormLayout(dlg)
+        # Prefill from git config
+        def cfgget(key: str) -> str:
+            try:
+                p = subprocess.run(["git", "config", "--get", key], cwd=str(self.workspace), text=True, stdout=subprocess.PIPE)
+                return (p.stdout or "").strip()
+            except Exception:
+                return ""
+        name = QLineEdit(cfgget("user.name")); lay.addRow("user.name", name)
+        email = QLineEdit(cfgget("user.email")); lay.addRow("user.email", email)
+        signingkey = QLineEdit(cfgget("user.signingkey")); lay.addRow("user.signingkey", signingkey)
+        tool = QLineEdit(cfgget("gpg.format") or "openpgp"); lay.addRow("gpg.format (openpgp|ssh)", tool)
+        tag_sign = QLineEdit(cfgget("tag.gpgSign") or "true"); lay.addRow("tag.gpgSign", tag_sign)
+        row = QHBoxLayout(); okb = QPushButton("Save"); cancelb = QPushButton("Cancel"); row.addWidget(okb); row.addWidget(cancelb); lay.addRow(row)
+        okb.clicked.connect(dlg.accept); cancelb.clicked.connect(dlg.reject)
+        if dlg.exec() == QDialog.DialogCode.Accepted:
+            def cfgset(k, v):
+                if v is None:
+                    return
+                v=v.strip();  subprocess.run(["git", "config", k, v], cwd=str(self.workspace))
+            cfgset("user.name", name.text())
+            cfgset("user.email", email.text())
+            cfgset("user.signingkey", signingkey.text())
+            cfgset("gpg.format", tool.text())
+            cfgset("tag.gpgSign", tag_sign.text())
+            QMessageBox.information(self, "Git", "Saved signing configuration.")
+
+    def on_ge_verify(self):
+        rc, out, err = self._ge_run(["verify"])
+        if rc == 0:
+            QMessageBox.information(self, "verify", out.strip() or "OK")
+        else:
+            QMessageBox.critical(self, "verify", err.strip() or "Failed")
+
+    def on_ge_matrix(self):
+        path, _ = QFileDialog.getSaveFileName(self, "Save Matrix JSON", str(self.workspace / "out" / "traceability.json"), "JSON (*.json)")
+        if not path:
+            return
+        rc, out, err = self._ge_run(["matrix", path])
+        if rc == 0:
+            QMessageBox.information(self, "matrix", out.strip() or "OK")
+        else:
+            QMessageBox.critical(self, "matrix", err.strip() or "Failed")
+
+    def on_ge_matrix_store(self):
+        rc, out, err = self._ge_run(["matrix-store"])
+        if rc == 0:
+            QMessageBox.information(self, "matrix-store", out.strip() or "OK")
+        else:
+            QMessageBox.critical(self, "matrix-store", err.strip() or "Failed")
+
+    def on_ge_notes_add(self):
+        commit, ok = QInputDialog.getText(self, "Notes Add", "Commit or HEAD:", text="HEAD")
+        if not ok or not commit.strip():
+            return
+        payload, ok = QInputDialog.getMultiLineText(self, "Notes Add", "JSON payload:", "{\n  \"status\": \"Approved\"\n}")
+        if not ok:
+            return
+        rc, out, err = self._ge_run(["notes-add", commit.strip(), payload])
+        if rc == 0:
+            QMessageBox.information(self, "notes-add", out.strip() or "OK")
+        else:
+            QMessageBox.critical(self, "notes-add", err.strip() or "Failed")
+
+    def on_ge_notes_show(self):
+        commit, ok = QInputDialog.getText(self, "Notes Show", "Commit or HEAD:", text="HEAD")
+        if not ok or not commit.strip():
+            return
+        rc, out, err = self._ge_run(["notes-show", commit.strip()])
+        if rc == 0:
+            QMessageBox.information(self, "notes-show", out.strip() or "(no notes)")
+        else:
+            QMessageBox.critical(self, "notes-show", err.strip() or "Failed")
+
+    def on_ge_install_hook(self):
+        rc, out, err = self._ge_run(["install-hook"])
+        if rc == 0:
+            QMessageBox.information(self, "install-hook", out.strip() or "OK")
+        else:
+            QMessageBox.critical(self, "install-hook", err.strip() or "Failed")
+
+    def on_ge_install_server(self):
+        d = QFileDialog.getExistingDirectory(self, "Select server hooks folder")
+        if not d:
+            return
+        rc, out, err = self._ge_run(["install-server-hooks", d])
+        if rc == 0:
+            QMessageBox.information(self, "install-server-hooks", out.strip() or "OK")
+        else:
+            QMessageBox.critical(self, "install-server-hooks", err.strip() or "Failed")
+
+    def on_ge_notes_push(self):
+        remote, ok = QInputDialog.getText(self, "Push Notes", "Remote:", text="origin")
+        if not ok or not remote.strip():
+            return
+        rc, out, err = self._ge_run(["notes-push", remote.strip()])
+        if rc == 0:
+            QMessageBox.information(self, "notes-push", out.strip() or "OK")
+        else:
+            QMessageBox.critical(self, "notes-push", err.strip() or "Failed")
+
+    def on_ge_notes_fetch(self):
+        remote, ok = QInputDialog.getText(self, "Fetch Notes", "Remote:", text="origin")
+        if not ok or not remote.strip():
+            return
+        rc, out, err = self._ge_run(["notes-fetch", remote.strip()])
+        if rc == 0:
+            QMessageBox.information(self, "notes-fetch", out.strip() or "OK")
+        else:
+            QMessageBox.critical(self, "notes-fetch", err.strip() or "Failed")
 
     def maybe_save(self) -> bool:
         if not self.editor.document().isModified():

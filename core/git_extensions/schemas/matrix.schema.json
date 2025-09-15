@@ -1,0 +1,19 @@
+{
+  "$schema": "https://json-schema.org/draft/2020-12/schema",
+  "title": "ReqStudio Matrix",
+  "type": "array",
+  "items": {
+    "type": "object",
+    "properties": {
+      "commit": { "type": "string", "minLength": 7 },
+      "ids": {
+        "type": "array",
+        "items": { "type": "string" }
+      },
+      "relaxed": { "type": "boolean" }
+    },
+    "required": ["commit", "ids"],
+    "additionalProperties": true
+  }
+}
+

@@ -37,7 +37,8 @@ dev = [
   "black>=24.0.0",
   "ruff>=0.5.0",
   "pytest>=7.0",
-  "pre-commit>=3.0"
+  "pre-commit>=3.0",
+  "jsonschema>=4.21"
 ]
 
 [tool.setuptools]

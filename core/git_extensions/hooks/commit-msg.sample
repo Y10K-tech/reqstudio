@@ -1,0 +1,13 @@
+#!/usr/bin/env bash
+# Deny commits without strict SRS-ID in the message
+MSG_FILE="$1"
+if [ -z "$MSG_FILE" ]; then
+  echo "ERROR: commit-msg hook: missing message file" >&2
+  exit 1
+fi
+if ! grep -E -q 'Y10K-[A-Z0-9]+-[A-Z0-9]+-(HL|LL|CMP|API|DB|TST)-[0-9]{3}' "$MSG_FILE"; then
+  echo 'ERROR: Commit message must contain a valid SRS-ID (Y10K-*-NNN).' >&2
+  exit 1
+fi
+exit 0
+
