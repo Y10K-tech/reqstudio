@@ -1,0 +1,28 @@
+<h1>App (PyQt6)</h1>
+<p>
+  The main window binds together the editor, preview, status bar, and Git actions. It uses <code>QSettings</code> to
+  remember the workspace and wires signals for menu/toolbar actions.
+</p>
+
+<h2>Main Components</h2>
+<ul>
+  <li><strong>Editor</strong>: <code>QTextEdit</code> with monospace font; bound to a Markdown highlighter.</li>
+  <li><strong>Preview</strong>: <code>QTextEdit</code> read-only, rendering Markdown with a simple CSS stylesheet.</li>
+  <li><strong>Status Bar</strong>: Displays workspace, current file, branch, SRS-IDs.</li>
+  <li><strong>Git</strong>: <code>GitFacade</code> powers commit/branch/history/push-pull.</li>
+</ul>
+
+<h2>Dialogs</h2>
+<ul>
+  <li><strong>CommitDialog</strong>: prompts for a commit message (pre-filled with detected SRS-IDs when available).</li>
+</ul>
+
+<h2>Actions</h2>
+<ul>
+  <li>Open/Save files, Open/Init workspace</li>
+  <li>Toggle preview</li>
+  <li>Insert template (HL/LL/CMP/ADR/Ticket)</li>
+  <li>Commit current/all, Branch ops, Push/Pull</li>
+  <li>View file history and open past versions</li>
+</ul>
+

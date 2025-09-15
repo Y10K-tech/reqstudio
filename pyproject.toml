@@ -22,10 +22,11 @@ dependencies = [
   "fastapi",
   "fastmcp",
   "cython",
-  "SQLAlchemy"
+  "SQLAlchemy",
   "alembic",
-  "typer"
-  "rich"
+  "typer",
+  "rich",
+  "uvicorn"
 ]
 
 [project.optional-dependencies]

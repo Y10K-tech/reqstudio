@@ -1,0 +1,29 @@
+<h1>SRS IDs</h1>
+<p>
+  SRS-IDs encode project, area, type, and a sequence number to enable traceability across documents, commits, and branches.
+  The app detects SRS-IDs in content and exposes them in the UI and commit helpers.
+</p>
+
+<h2>Format</h2>
+<pre><code>Y10K-&lt;PROJ&gt;-&lt;AREA&gt;-(HL|LL|CMP|API|DB|TST)-&lt;NNN&gt;</code></pre>
+<ul>
+  <li><code>PROJ</code>: Project code (e.g., <code>PAY</code>, <code>CORE</code>).</li>
+  <li><code>AREA</code>: Subsystem/domain (e.g., <code>API</code>, <code>WEB</code>, <code>DB</code>).</li>
+  <li><code>TYPE</code>: One of <code>HL</code>, <code>LL</code>, <code>CMP</code>, <code>API</code>, <code>DB</code>, <code>TST</code>.</li>
+  <li><code>NNN</code>: Zero-padded integer sequence (e.g., <code>001</code>, <code>042</code>).</li>
+</ul>
+
+<h2>Examples</h2>
+<pre><code>Y10K-PAY-API-HL-001
+Y10K-PAY-API-LL-012
+Y10K-COR-WEB-CMP-107
+Y10K-OPS-DB-ADR-004   (ADR IDs exist as document titles; commit messages can still include them)</code></pre>
+
+<h2>Usage Guidelines</h2>
+<ul>
+  <li>Include the ID at the top of the document and in commit messages.</li>
+  <li>Prefer one primary SRS-ID per document; link related IDs in a references section.</li>
+  <li>Use branch names like <code>feature/Y10K-PAY-API-LL-012-short</code> for cross-linking.</li>
+  <li>Consistent casing is recommended; detection is generally case-insensitive.</li>
+</ul>
+

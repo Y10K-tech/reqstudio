@@ -1,0 +1,35 @@
+<h1>Git Backend</h1>
+<p>
+  <code>core/git_backend.py</code> wraps GitPython in a small, UI-friendly API. It centralizes error handling,
+  string formatting, and safe operations to keep the UI code clean.
+</p>
+
+<h2>Errors</h2>
+<p>Errors are raised as <code>GitError</code> with user-friendly messages (e.g., repo not open, no remote configured).</p>
+
+<h2>Operations</h2>
+<pre><code>open(root: Path)
+init(root: Path)
+is_open() -> bool
+current_branch() -> str
+relpath(abspath: str|Path) -> str
+commit(paths?: List[Path], message: str = "")
+list_branches() -> List[str]
+create_branch(name: str, checkout: bool = True)
+checkout(name: str)
+log_file(relpath: str, max_count: int = 100) -> List[CommitMeta]
+get_file_at_commit(commit_hash: str, relpath: str) -> str
+push() -> str | None
+pull() -> str | None
+</code></pre>
+
+<h2>History Data</h2>
+<p>Each commit in <code>log_file</code> returns <code>{ hash, short, author, when, msg }</code> optimized for list rendering.</p>
+
+<h2>Notes</h2>
+<ul>
+  <li>Empty commits are blocked with a clear message.</li>
+  <li>Detached HEAD is shown as <code>(detached)</code> instead of throwing.</li>
+  <li>Remote operations require a configured remote; otherwise a descriptive error is raised.</li>
+</ul>
+

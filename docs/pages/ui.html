@@ -1,0 +1,35 @@
+<h1>UI Guide</h1>
+<p>
+  The PyQt6 interface centers on fast editing with traceability. The main window toggles between the source editor and
+  a rendered preview, includes a status bar for context, and provides Git-aware actions.
+</p>
+
+<h2>Layout</h2>
+<ul>
+  <li><strong>Editor</strong>: Plain Markdown/Text editor with a monospace font.</li>
+  <li><strong>Preview</strong>: Read-only rendered Markdown view (single-pane when active).</li>
+  <li><strong>Status Bar</strong>: Workspace path, current file, branch, and detected SRS-IDs.</li>
+  <li><strong>Menus/Toolbar</strong>: File operations, Git actions, template insertion, and view toggles.</li>
+  
+</ul>
+
+<h2>Editing</h2>
+<ul>
+  <li>Markdown headings, emphasis, code blocks, lists, tables, and blockquotes are styled for readability.</li>
+  <li>Use templates to scaffold SRS content and standardize sections.</li>
+  <li>Find (Ctrl+F) supports quick searches within the current document.</li>
+</ul>
+
+<h2>Git Actions</h2>
+<ul>
+  <li>Stage/commit all or selective paths; default message can include SRS-IDs.</li>
+  <li>Create/switch branches; push/pull from the configured remote.</li>
+  <li>Per-file history view: navigate commits and open any version inline.</li>
+</ul>
+
+<h2>Preview and Export</h2>
+<ul>
+  <li>Toggle preview to evaluate rendered content quickly.</li>
+  <li>Export to PDF using the Qt print pipeline.</li>
+</ul>
+

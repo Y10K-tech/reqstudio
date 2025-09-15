@@ -1,0 +1,51 @@
+<h1>Overview</h1>
+<p>
+  Y10K ReqStudio is a Git-driven editor for software requirements and SRS workflows. It focuses on speed,
+  traceability, and auditability by keeping your specifications as plain text/Markdown inside a Git repository.
+  The desktop app is built with Python and PyQt6, and integrates directly with Git for branching, staging,
+  committing, and per-file history with inline diffs.
+  PDF export and built-in SRS templates help you move from drafting to approvals efficiently.
+  This documentation covers concepts, UI, CLI/API, and the code architecture.
+  
+</p>
+
+<h2>Key Features</h2>
+<ul>
+  <li>Git-backed workspace and file history with diffs</li>
+  <li>Markdown/Text editing with lightweight highlighting</li>
+  <li>SRS-ID detection for traceability</li>
+  <li>Built-in templates: HL, LL, CMP, ADR, Ticket (Swedish and English)</li>
+  <li>PDF export via Qt print pipeline</li>
+  <li>Roadmap for richer PDF theming, validation, and plugins</li>
+  <li>Planned interfaces: CLI, FastAPI server, MCP integration</li>
+  
+</ul>
+
+<h2>Repository Layout</h2>
+<pre><code>.
+├─ app.py                 # PyQt6 desktop app entry/component
+├─ core/                  # Core modules: Git, highlighting, templates, utils
+├─ api/                   # API stubs (FastAPI, MCP, pluggable backends)
+├─ dbms/                  # DBMS scaffolding (future)
+├─ media/                 # Branding and images
+├─ docs/                  # This documentation site
+├─ README.md              # Project overview and guide
+├─ pyproject.toml         # Packaging and dependencies
+└─ requirements.txt       # Runtime requirements (optional)
+</code></pre>
+
+<h2>Who Is It For?</h2>
+<ul>
+  <li>Engineers and teams who prefer plain text, Git, and code review for requirements and SRS.</li>
+  <li>Organizations that need traceability, branch-based workflows, and simple exports for approvals.</li>
+  <li>Projects that want to integrate SRS work into the wider dev toolchain (CI, repos, PRs).</li>
+</ul>
+
+<h2>What’s Next?</h2>
+<ul>
+  <li>Start with <a href="#install">Install</a> and <a href="#getting-started">Quickstart</a>.</li>
+  <li>Learn the <a href="#ui">UI</a> and <a href="#srs-ids">SRS-ID</a> format.</li>
+  <li>Explore <a href="#templates">Templates</a>, <a href="#git">Git integration</a>, and <a href="#export">export</a>.</li>
+  <li>See <a href="#architecture">Architecture</a> to dive into the codebase.</li>
+</ul>
+

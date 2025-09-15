@@ -1,0 +1,35 @@
+<h1>Install</h1>
+<p>
+  ReqStudio targets Python 3.10+ and uses PyQt6 for the desktop UI. You can run it directly from source
+  in a virtual environment. Installation uses <code>pyproject.toml</code> (PEP 621) — no <code>requirements.txt</code> is required.
+</p>
+
+<h2>Prerequisites</h2>
+<ul>
+  <li>Python 3.10 or later</li>
+  <li>Git (for workspace repos and GitPython)</li>
+  <li>Platform Qt dependencies (PyQt6 wheels handle most cases)</li>
+</ul>
+
+<h2>Setup</h2>
+<pre><code># 1) Create and activate a virtual environment
+python -m venv .venv
+. .venv/bin/activate     # Windows: .venv\\Scripts\\activate
+
+# 2) Install project via pyproject.toml
+python -m pip install --upgrade pip
+python -m pip install .
+
+# Optional (if defined): development extras
+# python -m pip install .[dev]
+
+# 3) Run the app
+python app.py
+</code></pre>
+
+<h2>Notes</h2>
+<ul>
+  <li>If you hit dependency resolution issues, check <code>pyproject.toml</code> versions and extras.</li>
+  <li>On macOS/Linux, you may need additional Qt libraries provided by the wheel.</li>
+  <li>To build distributables (future), consider PyInstaller bundling.</li>
+</ul>

@@ -1,0 +1,19 @@
+<h1>Template Library</h1>
+<p>
+  <code>core/templates.py</code> provides template dictionaries for both Swedish and English. Types include HL, LL,
+  CMP, ADR, and Ticket. Each template includes a title and a multi-section content body designed to be pasted into
+  Markdown documents.
+</p>
+
+<h2>Localization</h2>
+<ul>
+  <li>Swedish: <code>BASE_TEMPLATE_SV</code> — uses headings like Sammanfattning, NFR, Risker, Arkitektur.</li>
+  <li>English: <code>BASE_TEMPLATE_ENGLISH</code> — uses headings like Summary, Scope, API/Data, NFRs, Risks.</li>
+</ul>
+
+<h2>Extensibility</h2>
+<p>
+  Consider externalizing templates to JSON/YAML for team-wide customization and versioning. The roadmap includes
+  a template manager and organization-level packs.
+</p>
+

@@ -1,0 +1,15 @@
+<h1>Core Package</h1>
+<p>
+  The <code>core</code> package implements non-UI functionality: Git operations, Markdown highlighting, templates,
+  and utility helpers. UI code in <code>app.py</code> depends on these modules.
+</p>
+
+<h2>Modules</h2>
+<ul>
+  <li><code>git_backend.py</code> — High-level Git facade (open/init, commit, branches, history, push/pull).</li>
+  <li><code>highlighter.py</code> — Markdown + SRS-ID highlighting for <code>QTextDocument</code>.</li>
+  <li><code>templates.py</code> — Built-in templates in Swedish and English.</li>
+  <li><code>utils.py</code> — Helpers like <code>detect_srs_ids</code> and newline normalization.</li>
+  <li><code>git_extensions/</code> — Extension points for additional Git-related commands (future).</li>
+</ul>
+

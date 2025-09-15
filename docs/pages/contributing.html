@@ -1,0 +1,23 @@
+<h1>Contributing</h1>
+<p>
+  Contributions are welcome. Please open issues for bugs or proposals and submit PRs with focused changes.
+  Keep the code style consistent with existing modules and update documentation when behavior changes.
+</p>
+
+<h2>Setup for Development</h2>
+<pre><code>python -m venv .venv
+. .venv/bin/activate                 # Windows: .venv\Scripts\activate
+python -m pip install --upgrade pip
+python -m pip install .
+
+# Optional (if defined):
+# python -m pip install .[dev]
+</code></pre>
+
+<h2>Guidelines</h2>
+<ul>
+  <li>Prefer small, focused PRs with a clear rationale.</li>
+  <li>Add tests when patterns exist; avoid introducing new frameworks without discussion.</li>
+  <li>Keep UI responsive and code straightforward; avoid overengineering.</li>
+  <li>Document user-facing changes in this docs site.</li>
+</ul>

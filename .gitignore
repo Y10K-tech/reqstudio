@@ -8,4 +8,15 @@ core/*.logs
 #root
 __pycache__
 issues.md
-ISSUES.MD 
+ISSUES.MD
+y10k_reqstudio.egg-info
+*.egg-info
+
+#api
+api/*.egg-info
+
+#dbms
+dmbs/*.egg-info
+#install
+
+

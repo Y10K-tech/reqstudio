@@ -1,0 +1,27 @@
+<h1>Docs Static Build</h1>
+<p>
+  In addition to the single-page app (SPA) at <code>/docs/</code>, you can generate a classic multi-page static site
+  from the same content. The static site lives under <code>docs/site/</code> and each page is a standalone HTML file
+  with a shared header and sidebar.
+</p>
+
+<h2>Build</h2>
+<pre><code>python docs/build_static.py
+# Output: docs/site/
+</code></pre>
+
+<h2>Open</h2>
+<ul>
+  <li>File:// — open <code>docs/site/index.html</code> directly in a browser (no server needed).</li>
+  <li>Server — when using the FastAPI docs server, visit <code>/docs-site/</code>.</li>
+  <li>Direct links — navigate to pages like <code>/docs-site/overview.html</code>.</li>
+  
+</ul>
+
+<h2>Notes</h2>
+<ul>
+  <li>The static site copies required media assets (logo) into <code>docs/site/media/</code>.</li>
+  <li>It reuses the same page content under <code>docs/pages/</code> to avoid duplication.</li>
+  <li>The SPA provides search; the static site focuses on reliable multi-page navigation.</li>
+</ul>
+

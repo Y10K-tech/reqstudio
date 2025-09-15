@@ -1,0 +1,19 @@
+<h1>Utilities</h1>
+<p>
+  <code>core/utils.py</code> contains small helpers used across the app. They are intentionally compact and focused.
+</p>
+
+<h2>Functions</h2>
+<pre><code>detect_srs_ids(text: str, pattern: str) -> list[str]
+  # Returns unique SRS-ID matches using the provided regex (case-insensitive when valid).
+
+normalize_newlines(s: str) -> str
+  # Normalizes CRLF/CR to LF for consistent processing.
+</code></pre>
+
+<h2>Notes</h2>
+<ul>
+  <li>Regex compilation errors fall back to non-flag matching for resilience.</li>
+  <li>Uniqueness is preserved while maintaining order.</li>
+</ul>
+

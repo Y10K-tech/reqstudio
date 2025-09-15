@@ -1,0 +1,23 @@
+<h1>API & MCP</h1>
+<p>
+  ReqStudio includes API scaffolding for two integration modes:
+</p>
+<ul>
+  <li><strong>FastAPI server</strong> — Programmatic access to workspaces, documents, and export/validation (planned).</li>
+  <li><strong>MCP integration</strong> — For LLM/workflow orchestration tooling (recommended with self-hosted models).</li>
+</ul>
+
+<h2>Notes</h2>
+<ul>
+  <li>Use a self-hosted model for MCP; avoid third-party LLM providers for sensitive data.</li>
+  <li>The <code>api/</code> folder contains placeholders for HTTPS, MCP, and pluggable backends.</li>
+</ul>
+
+<h2>Examples (future)</h2>
+<pre><code># FastAPI run (example sketch)
+uvicorn reqstudio.api:app --reload
+
+# MCP tool invocation (example sketch)
+mcp run reqstudio --op="validate" --path docs/*.md
+</code></pre>
+

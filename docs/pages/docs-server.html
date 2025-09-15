@@ -1,0 +1,40 @@
+<h1>Docs Server</h1>
+<p>
+  Run a minimalist FastAPI backend to serve the static documentation and media locally, offline.
+</p>
+
+<h2>Install</h2>
+<pre><code>python -m venv .venv
+. .venv/bin/activate                 # Windows: .venv\\Scripts\\activate
+python -m pip install --upgrade pip
+python -m pip install .
+
+# Optional (if defined):
+# python -m pip install .[dev]
+</code></pre>
+
+<h2>Run</h2>
+<pre><code># Option 1: module entrypoint
+python -m api.docs_server
+
+# Option 2: uvicorn directly
+uvicorn api.docs_server:app --host 127.0.0.1 --port 8000
+
+# Optional environment overrides
+DOCS_HOST=0.0.0.0 DOCS_PORT=8080 python -m api.docs_server
+</code></pre>
+
+<h2>Endpoints</h2>
+<ul>
+  <li><code>/</code> — Redirects to <code>/docs/</code></li>
+  <li><code>/docs/</code> — Serves the documentation SPA</li>
+  <li><code>/media/</code> — Serves repository media (e.g., <code>reqstudio_logo.png</code>)</li>
+  <li><code>/healthz</code> — Health check (<code>{"ok": true}</code>)</li>
+</ul>
+
+<h2>Notes</h2>
+<ul>
+  <li>Docs are served directly from the repository’s <code>docs/</code> folder.</li>
+  <li>The SPA uses hash routing; static files are resolved under <code>/docs/</code>.</li>
+  <li>Media is mounted at <code>/media</code> to support the logo and assets referenced by the docs.</li>
+</ul>

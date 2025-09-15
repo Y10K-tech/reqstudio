@@ -1,0 +1,20 @@
+<h1>Markdown Highlighter</h1>
+<p>
+  The highlighter in <code>core/highlighter.py</code> applies lightweight styling to Markdown constructs and highlights
+  SRS-IDs using a configurable regex. It operates on a <code>QTextDocument</code> and focuses on clarity over completeness.
+</p>
+
+<h2>Highlights</h2>
+<ul>
+  <li>Headings (H1–H6) with increasing sizes and spacing.</li>
+  <li>Inline code and fenced code blocks.</li>
+  <li>Lists, tables, and blockquotes with subtle borders.</li>
+  <li>SRS-IDs are emphasized to aid commit message preparation.</li>
+</ul>
+
+<h2>Customization</h2>
+<p>
+  The stylesheet used by the preview is small and intentionally readable. Extend it to match your organization’s style
+  or to emphasize specific sections (e.g., risks, NFRs).
+</p>
+

@@ -1,0 +1,44 @@
+<h1>Git Integration</h1>
+<p>
+  Git is a first-class citizen. Workspaces are Git repositories; commits and branches are part of the core workflow.
+  The app uses GitPython via a simple <code>GitFacade</code> wrapper in <code>core/git_backend.py</code>.
+</p>
+
+<h2>Capabilities</h2>
+<ul>
+  <li><strong>Open/init repo</strong>: Open an existing Git repo or initialize a new one.</li>
+  <li><strong>Stage & commit</strong>: Stage all or specific paths; guard against empty commits.</li>
+  <li><strong>Branches</strong>: List, create, and checkout branches (detached HEAD handled).</li>
+  <li><strong>History</strong>: Per-file log with hash, author, time, and message.</li>
+  <li><strong>Blame-like view</strong>: Load file contents at any commit for comparison.</li>
+  <li><strong>Push/Pull</strong>: Basic remote operations when a remote is configured.</li>
+</ul>
+
+<h2>Commit Messages</h2>
+<ul>
+  <li>Include SRS-IDs (e.g., <code>Y10K-PAY-API-LL-012</code>) in commit messages for traceability.</li>
+  <li>Consider enforcing SRS-ID presence via pre-commit hooks (future plugin).</li>
+</ul>
+
+<h2>Errors and Edge Cases</h2>
+<ul>
+  <li>Empty commits are blocked with an informative message.</li>
+  <li>Detached HEAD is displayed as <code>(detached)</code>.</li>
+  <li>Missing remotes surface a helpful error before push/pull.</li>
+</ul>
+
+<h2>Reference: GitFacade API</h2>
+<pre><code>open(root)                # open repo at path
+init(root)                # initialize a new repo
+is_open() -> bool         # whether a repo is open
+current_branch() -> str   # active branch or (detached)
+relpath(abspath) -> str   # path relative to repo root
+commit(paths?, message)   # stage add all or given paths, commit
+list_branches() -> [str]
+create_branch(name, checkout=True)
+checkout(name)
+log_file(relpath, max_count=100) -> list[commit]
+get_file_at_commit(hash, relpath) -> str
+push() / pull()
+</code></pre>
+

@@ -1,0 +1,22 @@
+<h1>CLI</h1>
+<p>
+  A command-line interface is scaffolded under <code>core/cli</code>. The main entrypoint is intended to be <code>rscli.py</code>,
+  with usage like <code>rscli [COMMAND]</code>. Commands will help automate tasks such as template generation, validation,
+  exports, and integration with CI.
+</p>
+
+<h2>Status</h2>
+<ul>
+  <li>Scaffold present: <code>core/cli/rscli.py</code>, <code>core/cli/readme.md</code>.</li>
+  <li>Implementation is pending; see Roadmap.</li>
+</ul>
+
+<h2>Planned Commands</h2>
+<ul>
+  <li><code>rscli init</code> — Initialize a requirements workspace.</li>
+  <li><code>rscli template &lt;TYPE&gt;</code> — Emit a template (HL, LL, CMP, ADR, Ticket).</li>
+  <li><code>rscli validate</code> — Check SRS-ID format and references.</li>
+  <li><code>rscli export &lt;path&gt;</code> — Batch export to PDF/HTML.</li>
+  <li><code>rscli link</code> — Scan and link IDs across files (report).</li>
+</ul>
+

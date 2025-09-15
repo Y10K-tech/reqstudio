@@ -1,0 +1,30 @@
+<h1>Architecture</h1>
+<p>
+  The system is a desktop-first application with modular core components and planned interfaces for automation.
+</p>
+
+<h2>Layers</h2>
+<ul>
+  <li><strong>App (PyQt6)</strong> — UI, editor/preview, status bar, actions, export.</li>
+  <li><strong>Core</strong> — Git abstraction, Markdown highlighting, template library, utilities.</li>
+  <li><strong>Interfaces</strong> — CLI (planned), API/MCP (scaffolded).</li>
+  <li><strong>DBMS</strong> — Placeholder for future persistence/extensions.</li>
+</ul>
+
+<h2>Key Modules</h2>
+<ul>
+  <li><code>app.py</code> — Main window, actions, wiring to core.</li>
+  <li><code>core/git_backend.py</code> — <code>GitFacade</code> with high-level operations.</li>
+  <li><code>core/highlighter.py</code> — Markdown and SRS-ID highlighting.</li>
+  <li><code>core/templates.py</code> — Templates (Swedish/English) for HL/LL/CMP/ADR/Ticket.</li>
+  <li><code>core/utils.py</code> — Helpers like <code>detect_srs_ids</code>.</li>
+</ul>
+
+<h2>Data Flow</h2>
+<ol>
+  <li>User edits Markdown in the editor.</li>
+  <li>Highlighter decorates Markdown and SRS-IDs for readability.</li>
+  <li>GitFacade handles staging/committing and branch operations.</li>
+  <li>Preview renders Markdown; Export generates PDFs.</li>
+</ol>
+

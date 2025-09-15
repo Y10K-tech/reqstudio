@@ -1,0 +1,27 @@
+<h1>Troubleshooting</h1>
+
+<h2>PyQt6 Installation Issues</h2>
+<ul>
+  <li>Upgrade pip and retry: <code>python -m pip install --upgrade pip</code>.</li>
+  <li>Install from <code>requirements.txt</code> if <code>pyproject.toml</code> resolution fails.</li>
+</ul>
+
+<h2>Git Errors</h2>
+<ul>
+  <li><strong>Repo not open</strong>: Open a workspace or initialize a new Git repo.</li>
+  <li><strong>No changes to commit</strong>: Stage changes before committing.</li>
+  <li><strong>No remote configured</strong>: Add a remote before push/pull: <code>git remote add origin &lt;URL&gt;</code>.</li>
+</ul>
+
+<h2>PDF Export Problems</h2>
+<ul>
+  <li>Try a different path or filename; ensure write permissions.</li>
+  <li>Consider printing to PDF from the OS print dialog as a fallback.</li>
+</ul>
+
+<h2>Encoding/Text Issues</h2>
+<ul>
+  <li>Use UTF-8 files; normalize line endings (LF) if diffs look odd.</li>
+  <li>See <code>normalize_newlines</code> utility behavior for consistency.</li>
+</ul>
+
