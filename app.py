@@ -27,7 +27,7 @@ from PyQt6.QtWidgets import (
 from PyQt6.QtPrintSupport import QPrinter
 
 from core.git_backend import GitFacade, GitError
-from core.highlighter import MarkdownHighlighter
+from core.highlighter import MarkdownHighlighter, LivePreviewHighlighter
 from core.templates import TEMPLATES
 from core.utils import detect_srs_ids, normalize_newlines
 
@@ -244,6 +244,10 @@ class MainWindow(QMainWindow):
         self.act_live_preview.setCheckable(True)
         self.act_live_preview.setChecked(False)
 
+        self.act_inline_live = QAction("Live Inline Markdown", self)
+        self.act_inline_live.setCheckable(True)
+        self.act_inline_live.setChecked(False)
+
         # Shortcuts
         self.act_new.setShortcut("Ctrl+N")
         self.act_open.setShortcut("Ctrl+O")
@@ -296,6 +300,7 @@ class MainWindow(QMainWindow):
 
         m_tools = self.menuBar().addMenu("&Verktyg")
         m_tools.addAction(self.act_live_preview)
+        m_tools.addAction(self.act_inline_live)
         m_tools.addAction(self.act_toggle_md)
 
     def _make_toolbar(self):
@@ -344,6 +349,12 @@ class MainWindow(QMainWindow):
 
         self.act_toggle_md.toggled.connect(self.on_toggle_highlight)
         self.act_live_preview.toggled.connect(self.on_toggle_preview_mode)
+        self.act_inline_live.toggled.connect(self.on_toggle_inline_live)
+        self.editor.cursorPositionChanged.connect(self._on_cursor_pos_changed)
+
+        # Inline live state
+        self.live_highlighter = None
+        self._inline_prev_blocknum = -1
 
     # Preview / render
     def render_markdown(self, text: str) -> str:
@@ -377,6 +388,42 @@ class MainWindow(QMainWindow):
             self.stack.setCurrentIndex(1)
         else:
             self.stack.setCurrentIndex(0)
+
+    def on_toggle_inline_live(self, enabled: bool):
+        # Inline live is mutually exclusive with full preview; ensure editor is visible
+        if enabled:
+            if self.stack.currentIndex() != 0:
+                self.stack.setCurrentIndex(0)
+            # detach normal highlighter
+            self.highlighter.setDocument(None)
+            # attach live highlighter
+            self.live_highlighter = LivePreviewHighlighter(self.editor.document())
+            self._on_cursor_pos_changed()
+        else:
+            # detach live and restore normal highlighter
+            if self.live_highlighter:
+                self.live_highlighter.setDocument(None)
+                self.live_highlighter = None
+            self.highlighter.setDocument(self.editor.document())
+            self.highlighter.rehighlight()
+
+    def _on_cursor_pos_changed(self):
+        if not self.live_highlighter:
+            return
+        cursor = self.editor.textCursor()
+        pos = cursor.position()
+        blocknum = cursor.blockNumber()
+        self.live_highlighter.setCaretPosition(pos)
+        # Rehighlight current and previous block to show/hide markers correctly
+        doc = self.editor.document()
+        if self._inline_prev_blocknum >= 0 and self._inline_prev_blocknum != blocknum:
+            prev_block = doc.findBlockByNumber(self._inline_prev_blocknum)
+            if prev_block.isValid():
+                self.live_highlighter.rehighlightBlock(prev_block)
+        cur_block = cursor.block()
+        if cur_block.isValid():
+            self.live_highlighter.rehighlightBlock(cur_block)
+        self._inline_prev_blocknum = blocknum
 
     def on_toggle_highlight(self, enabled: bool):
         if enabled:
@@ -647,4 +694,3 @@ def main():
 
 if __name__ == "__main__":
     main()
-

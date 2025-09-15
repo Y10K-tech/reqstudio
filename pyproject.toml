@@ -18,7 +18,10 @@ authors = [
 dependencies = [
   "PyQt6>=6.5",
   "GitPython>=3.1",
-  "markdown>=3.4"
+  "markdown>=3.4",
+  "fastapi",
+  "fastmcp",
+  "cython"
 ]
 
 [project.optional-dependencies]
